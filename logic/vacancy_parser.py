@@ -29,33 +29,18 @@ def save_cache(vacancies: List[Dict[str, str]]):
     except Exception as e:
         print(f"Ошибка сохранения кэша: {e}")
 
+
+
 async def get_total_vacancies(page: Page) -> int:
-    """Упрощённый парсинг общего количества вакансий: ищем текст без селекторов."""
     try:
-        # Получаем весь текст страницы
         all_text = await page.inner_text("body")
-        # print(f"DEBUG: all_text sample: {all_text[:1000]}")  # Для дебага, раскомментировать если нужно
-        
-        # Гибкий regex для "Найдено X подходящих вакансий для резюме" или вариаций
-        # Ловим "Найдено" (мн.ч.), число (с тыс.), "подходящих вакансий" или просто "вакансий"
-        match = re.search(r'Найдено\s+(\d+(?:\s*тыс\.?\s*\d+)?)\s*(подходящих\s+)?ваканси[яй]', all_text, re.IGNORECASE)
-        if match:
-            num_str = match.group(1).replace(' ', '').replace('тыс.', '000')
-            print(f"DEBUG: Найден текст: '{match.group(0)}', parsed: {num_str}")
-            return int(num_str)
-        
-        # Дополнительный fallback для других вариаций, напр. "Найдена вакансия" или "X вакансий"
-        fallback_match = re.search(r'Найд[ео]на?\s+(\d+(?:\s*тыс\.?\s*\d+)?)\s*ваканси[яй]', all_text, re.IGNORECASE)
-        if fallback_match:
-            num_str = fallback_match.group(1).replace(' ', '').replace('тыс.', '000')
-            print(f"DEBUG: Fallback текст: '{fallback_match.group(0)}', parsed: {num_str}")
-            return int(num_str)
-        
-        print("DEBUG: Текст с количеством не найден.")
-        return 0
+        match = re.search(r'Найдено.*?(\d+).*?подходящих.*?ваканси[яй].*?для.*?резюме', all_text, re.IGNORECASE | re.UNICODE | re.DOTALL)
+        return int(match.group(1)) if match else 0
     except Exception as e:
-        print(f"Ошибка при извлечении общего количества вакансий: {e}")
+        print(f"Ошибка: {e}")
         return 0
+
+
 
 async def get_search_session_id(page: Page) -> str:
     """Извлечение searchSessionId из URL."""
