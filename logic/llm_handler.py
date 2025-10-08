@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import json
 import random
 from typing import List, Dict, Any, Optional, Tuple
@@ -12,13 +12,11 @@ _semaphore = asyncio.Semaphore(10)
 
 
 def download_working_results(url: str, filename: str) -> bool:
-    print(f"Downloading working results: {url}")
     try:
         r = requests.get(url, timeout=15)
         r.raise_for_status()
         with open(filename, "w", encoding="utf-8") as f:
             f.write(r.text)
-        print(f"Saved as {filename}")
         return True
     except requests.RequestException as e:
         print(f"Download error: {e}")
@@ -26,7 +24,6 @@ def download_working_results(url: str, filename: str) -> bool:
 
 
 def get_working_combinations(filepath: str) -> List[Tuple[str, str, str]]:
-    print(f"Reading working combinations from {filepath}...")
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -39,7 +36,6 @@ def get_working_combinations(filepath: str) -> List[Tuple[str, str, str]]:
                     provider, model, typ = parts
                     combinations.append((provider, model, typ))
         combinations = list(set(combinations))  # Удаляем дубли
-        print(f"Found {len(combinations)} working combinations.")
         return combinations
     except Exception as e:
         print(f"Error reading file: {e}. Using fallback.")
@@ -63,7 +59,6 @@ def save_successful_combos(filename: str, combos: set):
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump([list(c) for c in combos], f, ensure_ascii=False)
-        print(f"Successful combos saved: {len(combos)}")
     except Exception as e:
         print(f"Error saving successful combos: {e}")
 
@@ -75,7 +70,6 @@ async def try_combo(provider_name: str, model_name: str, typ: str, system_prompt
             await asyncio.sleep(random.uniform(0.1, 0.6))  # имитация человека
             provider_class = getattr(g4f.Provider, provider_name, None)
             if not provider_class:
-                print(f"Provider {provider_name} not found, skipping...")
                 return None
 
             messages = [
@@ -95,13 +89,12 @@ async def try_combo(provider_name: str, model_name: str, typ: str, system_prompt
                 try:
                     payload = json.loads(candidate)
                     if isinstance(payload, dict):
-                        print(f"Успешно использована модель {model_name} через провайдера {provider_name}")
                         return payload
                 except json.JSONDecodeError:
                     pass
 
     except ModelNotFoundError:
-        print(f"Model not found for {model_name}/{provider_name}, skipping...")
+        pass
     except asyncio.TimeoutError:
         print(f"Таймаут для {model_name}/{provider_name}")
     except Exception as e:
@@ -132,7 +125,6 @@ async def robust_llm_query(system_prompt: str, user_prompt: str) -> Optional[Dic
     # === 1. Приоритетные комбинации (с 3 ретраями) ===
     for provider_name, model_name, typ in priority_combos:
         for attempt in range(3):
-            print(f"[Priority] Попытка {attempt+1}/3 для {model_name}/{provider_name}")
             payload = await try_combo(provider_name, model_name, typ, system_prompt, user_prompt)
             if payload:
                 combo = (provider_name, model_name, typ)
