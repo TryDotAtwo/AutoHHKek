@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 from typing import Optional, Dict
 import hashlib
@@ -49,15 +49,16 @@ async def parse_resume(page: Page, resume_id: str, user_wishes: str) -> str:
         # Проверяем на ошибку страницы
         error_elem = await page.query_selector("text=Произошла ошибка")
         if error_elem:
-            print("Обнаружена ошибка страницы: 'Произошла ошибка. Попробуйте перезагрузить страницу.'")
-            print("Возможно, неверный ID резюме или требуется перелогин. Переходим к полному тексту для LLM.")
+            print()
+            # print("Обнаружена ошибка страницы: 'Произошла ошибка. Попробуйте перезагрузить страницу.'")
+            # print("Возможно, неверный ID резюме или требуется перелогин. Переходим к полному тексту для LLM.")
         
         # Перезагрузка для очистки кэша
         await page.reload(wait_until="domcontentloaded", timeout=30000)
         print("Страница перезагружена для очистки кэша.")
         
     except PlaywrightTimeoutError:
-        print("Таймаут загрузки страницы резюме, продолжаем с частичной загрузкой.")
+        # print("Таймаут загрузки страницы резюме, продолжаем с частичной загрузкой.")
         await page.wait_for_timeout(5000)
     
     # Разворачиваем все секции
@@ -65,7 +66,38 @@ async def parse_resume(page: Page, resume_id: str, user_wishes: str) -> str:
     
     # Получаем весь видимый текст
     full_raw_text = await page.inner_text("body")
-    print(f"RAW FULL TEXT (первые 500 символов): {full_raw_text[:500]}...")
+    # print(f"RAW FULL TEXT (первые 500 символов): {full_raw_text[:500]}...")
+
+    # Очищаем от текста до названия резюме (удаляем всё перед блоком с названием)
+    title_block = None
+    try:
+        # Ищем блок с названием резюме по data-qa
+        title_elem = await page.query_selector("h1[data-qa='resume-block-title-position']")
+        if title_elem:
+            title_block = await title_elem.evaluate_handle("el => el.closest('.content-wrapper--W_LEG9_TxQE8MEh_') || el.closest('[data-qa=\"title-container\"]')?.parentElement?.parentElement")
+            if title_block:
+                # Получаем текст начиная с этого блока и до конца body
+                title_text = await title_block.evaluate("el => el.innerText")
+                # Находим позицию в full_raw_text, где начинается этот блок (примерно)
+                start_pos = full_raw_text.find(title_text.strip())
+                if start_pos != -1:
+                    full_raw_text = full_raw_text[start_pos:]
+                    # print("Очищено от текста до названия резюме.")
+                else:
+                    # Fallback: заменяем весь текст до первого вхождения ключевых слов названия
+                    title_keywords = "LLM Engineer"  # Можно динамически взять текст из title_elem
+                    start_pos = full_raw_text.find(title_keywords)
+                    if start_pos != -1:
+                        full_raw_text = full_raw_text[start_pos:]
+                        # print("Fallback: очищено по ключевым словам названия.")
+                    else:
+                        print("Не удалось найти начало блока резюме, оставляем как есть.")
+            else:
+                print("Блок названия резюме найден, но parentElement вернул null")
+        else:
+            print("Элемент с названием резюме не найден")
+    except Exception as e:
+        print(f"Ошибка очистки до названия резюме: {e}")
 
     # Удаляем контактные данные
     contacts_removed = False
@@ -93,9 +125,10 @@ async def parse_resume(page: Page, resume_id: str, user_wishes: str) -> str:
         print(f"Ошибка удаления контактов: {e}")
         raise Exception(error_msg)
 
-    # Вычисляем хеш от обработанного raw текста
-    text_hash = hashlib.sha256(full_raw_text.encode('utf-8')).hexdigest()
-    print(f"Хеш текста: {text_hash[:16]}...")
+    # Вычисляем хеш от обработанного raw текста + user_wishes (для кэша по полному вводу в LLM)
+    cache_input = full_raw_text + "\n\nПожелания пользователя:\n" + user_wishes
+    text_hash = hashlib.sha256(cache_input.encode('utf-8')).hexdigest()
+    print(f"Хеш текста (raw + wishes): {text_hash[:16]}...")
 
     # Проверяем кэш
     cached_profile = load_cache(text_hash)
@@ -188,7 +221,7 @@ async def expand_all_sections(page: Page):
     for selector in expand_selectors:
         try:
             expands = await page.query_selector_all(selector)
-            print(f"Найдено {len(expands)} элементов для {selector}")
+            # print(f"Найдено {len(expands)} элементов для {selector}")
             for i, expand in enumerate(expands):
                 try:
                     await expand.scroll_into_view_if_needed()
@@ -196,7 +229,7 @@ async def expand_all_sections(page: Page):
                     await asyncio.wait_for(page.wait_for_load_state("domcontentloaded"), timeout=5.0)
                     await page.wait_for_timeout(1500)
                     expanded_count += 1
-                    print(f"Развернута секция {expanded_count} по {selector} [{i}]")
+                    # print(f"Развернута секция {expanded_count} по {selector} [{i}]")
                 except (PlaywrightTimeoutError, asyncio.TimeoutError):
                     print(f"Таймаут клика/загрузки для {selector} [{i}], пропускаем")
                 except Exception as e:
@@ -220,15 +253,16 @@ async def expand_all_sections(page: Page):
                     await expand.click(timeout=5000, force=True)
                     await asyncio.wait_for(page.wait_for_load_state("domcontentloaded"), timeout=5.0)
                     await page.wait_for_timeout(1500)
-                    print(f"Развернут '{name}'")
+                    # print(f"Развернут '{name}'")
                 except (PlaywrightTimeoutError, asyncio.TimeoutError):
                     print(f"Таймаут для '{name}', пропускаем")
                 except Exception as e:
                     print(f"Ошибка клика '{name}': {e}")
             else:
-                print(f"Блок '{name}' не найден")
+                print()
+                # print(f"Блок '{name}' не найден")
         except Exception as e:
             print(f"Ошибка поиска '{name}': {e}")
     
-    print(f"Всего развернуто: {expanded_count}")
+    # print(f"Всего развернуто: {expanded_count}")
     await page.wait_for_timeout(3000)
