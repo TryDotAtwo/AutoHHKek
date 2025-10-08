@@ -1,4 +1,5 @@
 import asyncio
+import re
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 from typing import Optional, Dict
 import hashlib
@@ -7,7 +8,6 @@ import os
 from .llm_handler import robust_llm_query
 
 CACHE_FILE = "resume_cache.json"
-
 
 def load_cache(hash_key: str) -> Optional[str]:
     """Загружает кэш из JSON файла."""
@@ -20,7 +20,6 @@ def load_cache(hash_key: str) -> Optional[str]:
     except (json.JSONDecodeError, KeyError) as e:
         print(f"Ошибка загрузки кэша: {e}")
         return None
-
 
 def save_to_cache(hash_key: str, value: str):
     """Сохраняет в кэш в JSON файл."""
@@ -36,7 +35,6 @@ def save_to_cache(hash_key: str, value: str):
         print("Кэш сохранён.")
     except Exception as e:
         print(f"Ошибка сохранения кэша: {e}")
-
 
 async def parse_resume(page: Page, resume_id: str, user_wishes: str) -> str:
     """Парсит резюме с HH для формирования USER_PROFILE."""
@@ -125,10 +123,22 @@ async def parse_resume(page: Page, resume_id: str, user_wishes: str) -> str:
         print(f"Ошибка удаления контактов: {e}")
         raise Exception(error_msg)
 
-    # Вычисляем хеш от обработанного raw текста + user_wishes (для кэша по полному вводу в LLM)
-    cache_input = full_raw_text + "\n\nПожелания пользователя:\n" + user_wishes
+    # Дополнительная очистка: удаляем cookie-баннеры, чаты и т.д.
+    unwanted_patterns = [
+        r'Мы\s+используем файлы cookie.*?Понятно',
+        r'Чаты.*?Поиск',
+        r'^\s*$\n'  # Лишние пустые строки
+    ]
+    for pattern in unwanted_patterns:
+        full_raw_text = re.sub(pattern, '', full_raw_text, flags=re.DOTALL | re.MULTILINE)
+
+    # Удаляем лишние пробелы и переносы
+    cleaned_text = re.sub(r'\n\s*\n', '\n', full_raw_text.strip())
+
+    # Вычисляем хеш от очищенного текста + user_wishes
+    cache_input = cleaned_text + "\n\nПожелания пользователя:\n" + user_wishes
     text_hash = hashlib.sha256(cache_input.encode('utf-8')).hexdigest()
-    print(f"Хеш текста (raw + wishes): {text_hash[:16]}...")
+    print(f"Хеш текста (cleaned + wishes): {text_hash[:16]}...")
 
     # Проверяем кэш
     cached_profile = load_cache(text_hash)
@@ -152,7 +162,7 @@ async def parse_resume(page: Page, resume_id: str, user_wishes: str) -> str:
 Ниже приведён полный текст страницы резюме (возможно, с ошибками или мусором):
 
 ================ RAW RESUME TEXT (in Russian) ================
-{full_raw_text}
+{cleaned_text}
 ================ END =================
 
 Пожелания пользователя:
@@ -195,8 +205,8 @@ async def parse_resume(page: Page, resume_id: str, user_wishes: str) -> str:
     if result and isinstance(result, dict) and 'resume' in result:
         user_profile = result['resume']
     else:
-        # fallback на сырой текст
-        user_profile = full_raw_text[:2000]
+        # fallback на очищенный текст
+        user_profile = cleaned_text[:2000]
     
     print(f"PROCESSED USER_PROFILE (от LLM): {user_profile}")
     
@@ -204,7 +214,6 @@ async def parse_resume(page: Page, resume_id: str, user_wishes: str) -> str:
     save_to_cache(text_hash, user_profile)
     
     return user_profile
-
 
 async def expand_all_sections(page: Page):
     """Разворачивает все collapsible секции с таймаутами."""
