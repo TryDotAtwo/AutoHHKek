@@ -7,6 +7,7 @@ import os
 import json
 import re
 from tqdm import tqdm
+import argparse  # Добавлено для парсинга аргументов
 
 def install_and_import(package):
     """Устанавливает пакет, если не установлен, и импортирует его."""
@@ -32,16 +33,36 @@ import time
 from logic.login import setup_browser_and_login
 from logic.resume_parser import parse_resume
 from logic.vacancy_parser import search_vacancies
-from logic.llm_handler import robust_llm_query
+from logic.vacancy_handler import process_vacancy  # Новый импорт (теперь принимает готовый letter и relevance)
+from logic.llm_handler import robust_llm_query  # Для LLM (используется только в main)
 from playwright.async_api import async_playwright, Page, BrowserContext, TimeoutError as PlaywrightTimeoutError
 from playwright._impl._errors import Error as PlaywrightError  # Для обработки closed errors
 from playwright_stealth import Stealth  # Используем Stealth класс для async
 from typing import Dict, Any, Tuple
 
-# Конфигурация
+# Конфигурация (данные для тестов из конфига)
 RESUME_ID = "[Ваш ID резюме]"  # Ваш ID резюме
-USER_WISHES = "[Ваиш пожелания]"  # Пожелания пользователя
+USER_WISHES = "[Ваши пожелания]"  # Пожелания пользователя
 USER_PROFILE = ""  # Будет обновлено после парсинга
+
+# Конфигурация для тестов (тестовые данные для независимого тестирования модулей)
+TEST_CONFIG = {
+    "test_profile": "Тестовый профиль специалиста по LLM: опыт 2+ года в NLP, разработка бенчмарков, промптинг",
+    "test_vacancy_title": "[Название вакансии]",
+    "test_vacancy_url": "[Ссылка на тест вакансию]",
+    "test_vacancy_description": "Тестовое описание вакансии по ML. Требуется опыт в LLM и промптинге. Включите в письмо фразу 'Я готов к вызовам'.",
+    "test_llm_response": {
+        "relevance": "Оценка релевантности (0-10): 8",
+        "apply": "Да",
+        "letter": "Уважаемые коллеги!"
+    },
+    "test_letter_text": """Тест""",
+    "test_relevance_score": 8,
+    "test_apply_decision": "да",
+    "test_model_name": "command-a-03-2025",
+    "test_provider_name": "CohereForAI_C4AI_Command",
+    "test_disclaimer": '\n\nСопроводительное письмо составлено при помощи Большой Языковой Модели "{model_name}" провайдера "{provider_name}" используя библиотеку g4f. Эта же модель использовалась для определения соответствия вакансии резюме и пожеланиям соискателя. Исходный код программы для автоматизации откликов на hh.ru доступен в репозитории https://github.com/TryDotAtwo/AutoHHKek'
+}
 
 PROMPTS = {
     "process": """
@@ -76,409 +97,254 @@ PROMPTS = {
 MAGIC_NUMBERS = {
     "RELEVANCE_THRESHOLD": 7,
     "DESCRIPTION_MAX_LEN": 1000,  # Оставляем для совместимости, но не используем срез
-    "CONCURRENCY_LIMIT": 5,  # Уменьшено для стабильности
-    "PROCESS_INTERVAL": 3,  # Интервал между запуском новых задач в секундах
+    "CONCURRENCY_LIMIT": 10,  # Вернули 5 для параллели
+    "PROCESS_INTERVAL": 5,  # Интервал между запуском новых задач в секундах (опционально, если нужно)
     "DEBUG_MODE": False,  # Включено для отладки
     "SCREENSHOT_DIR": "./screenshots"  # Директория для скриншотов
 }
 
-def debug_print(message: str):
-    """Выводит сообщение только в debug режиме."""
-    if MAGIC_NUMBERS["DEBUG_MODE"]:
-        print(message)
+CONFIG = {
+    "resume_id": RESUME_ID,
+    "user_wishes": USER_WISHES,
+    "prompts": PROMPTS,
+    "magic_numbers": MAGIC_NUMBERS,
+    "test_config": TEST_CONFIG,
+    "system_prompt": "Ты - ассистент по сопроводительным письмам. Отвечай только JSON.",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "model_name": "command-a-03-2025",
+    "provider_name": "CohereForAI_C4AI_Command",
+    "disclaimer_template": '\n\nСопроводительное письмо составлено при помощи Большой Языковой Модели "{model_name}" провайдера "{provider_name}" используя библиотеку g4f. Эта же модель использовалась для определения соответствия вакансии резюме и пожеланиям соискателя. Исходный код программы для автоматизации откликов на hh.ru доступен в репозитории https://github.com/TryDotAtwo/AutoHHKek',
+    "progress_desc": "Обработка вакансий",
+    "progress_unit": "vac",
+    "launch_msg": "🚀 Запуск {index}/{total}: {title}...",
+    "complete_msg": "✅ Завершено для {title}: {status}",
+    "test_login_msg": "🧪 Тестируем только модуль login...",
+    "test_resume_msg": "🧪 Тестируем только модуль resume_parser (ID: {resume_id})...",
+    "test_vacancy_search_msg": "🧪 Тестируем только модуль vacancy_parser (ID: {resume_id})...",
+    "test_llm_msg": "🧪 Тестируем только модуль llm_handler...",
+    "test_vacancy_handler_msg": "🧪 Тестируем только модуль vacancy_handler для '{title}' (ID резюме: {resume_id})...",
+    "login_success": "✅ Логин успешен! Context создан.",
+    "resume_parsed": "✅ Резюме спарсено: {profile}...",
+    "vacancies_found": "✅ Найдено {count} вакансий (всего {total}). Пример: {example}",
+    "llm_success": "✅ LLM ответ: {response}",
+    "llm_result": "   - Результат: {result}",
+    "llm_model": "   - Модель: {model}, Провайдер: {provider}",
+    "vacancy_handler_result": "✅ Результат: {result}",
+    "no_vacancies": "Вакансии не найдены.",
+    "stats_msg": "📊 Найдено {count} вакансий (из {total}). Concurrency: {concurrency}, интервал: {interval} сек",
+    "progress_update": "Обработано {processed}/{total} (осталось: {remaining})",
+    "task_error": "💥 Ошибка в задаче: {error}",
+    "total_success": "🎯 Итого успешных откликов с письмом: {success}/{total}",
+    "profile_preview_len": 200,
+    "title_preview_len": 50,
+    "random_delay_prob": 0.5,
+    "random_delay_min": 1,
+    "random_delay_add": 1
+}
 
-async def handle_captcha(page: Page, title: str = "") -> bool:
-    """Обрабатывает CAPTCHA: просит пользователя пройти её и подтверждает продолжение."""
-    print(f"Обнаружена CAPTCHA{' для вакансии: ' + title if title else ''}! Пожалуйста, перейдите в открытый браузер, пройдите CAPTCHA вручную и нажмите Enter здесь, чтобы продолжить...")
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, input)
-    print("Продолжаем работу...")
-    # Дополнительная проверка, что CAPTCHA пройдена (опционально)
-    try:
-        await page.wait_for_selector("text=Подтвердите, что вы не робот", timeout=2000)
-        print("CAPTCHA всё ещё видна! Пожалуйста, пройдите её заново и нажмите Enter.")
-        await loop.run_in_executor(None, input)
-    except PlaywrightTimeoutError:
-        pass  # CAPTCHA пройдена, ок
-    return True
-
-async def safe_page_operation(page: Page, operation: callable, *args, **kwargs) -> Any:
-    """Безопасная обёртка для операций с page: check closed и catch errors."""
-    try:
-        if page.is_closed():
-            raise PlaywrightError("Page is closed")
-        return await operation(*args, **kwargs)
-    except (PlaywrightError, PlaywrightTimeoutError) as e:
-        debug_print(f"Page error in operation: {e}")
-        return None
-
-async def parse_vacancy_description(page: Page, title: str) -> str:
-    """Парсит описание вакансии аналогично парсингу резюме: полный текст, очистка."""
-    debug_print("Парсинг описания вакансии...")
-    
-    # Проверка на CAPTCHA
-    captcha_result = await safe_page_operation(page, page.wait_for_selector, "text=Подтвердите, что вы не робот", timeout=5000)
-    if captcha_result is not None:
-        await handle_captcha(page, title)
-    
-    # Проверяем на ошибку страницы
-    error_result = await safe_page_operation(page, page.wait_for_selector, "text=Произошла ошибка", timeout=5000)
-    if error_result is not None:
-        debug_print("Обнаружена ошибка страницы: 'Произошла ошибка. Попробуйте перезагрузить страницу.'")
-    
-    # Перезагрузка для очистки кэша
-    reload_result = await safe_page_operation(page, page.reload, wait_until="domcontentloaded", timeout=30000)
-    if reload_result is None:
-        debug_print("Таймаут загрузки страницы вакансии, продолжаем с частичной загрузкой.")
-        await page.wait_for_timeout(5000)
-    
-    # Получаем весь видимый текст (без разворачивания секций)
-    full_raw_text = await safe_page_operation(page, page.inner_text, "body")
-    if full_raw_text is None:
-        return ""  # Fallback если page closed
-    
-    # debug_print(f"RAW FULL TEXT (первые 500 символов): {full_raw_text[:500]}...")
-    
-    # Очистка: удаляем текст ниже "Задайте вопрос работодателю" и выше названия вакансии
-    # Находим позицию заголовка вакансии (предполагаем, что title известен)
-    title_start = full_raw_text.find(title)
-    if title_start == -1:
-        # Fallback: ищем по паттерну заголовка вакансии
-        title_match = re.search(r'class="vacancy-title".*?>([^<]+)<', full_raw_text, re.DOTALL | re.IGNORECASE)
-        if title_match:
-            title_start = title_match.start()
-        else:
-            title_start = 0  # Если не нашли, берём с начала
-    
-    # Находим позицию "Задайте вопрос работодателю"
-    question_start = full_raw_text.find("Задайте вопрос работодателю")
-    if question_start != -1:
-        full_raw_text = full_raw_text[:question_start]
-    
-    # Обрезаем до/от заголовка
-    if title_start > 0:
-        full_raw_text = full_raw_text[title_start:]
-    
-    # Дополнительная очистка: удаляем cookie баннеры, чаты и т.д. (простой regex)
-    unwanted_patterns = [
-        r'Мы\s+используем файлы cookie.*?Понятно',
-        r'Чаты.*?Поиск',
-        r'^\s*$\n'  # Лишние пустые строки
-    ]
-    for pattern in unwanted_patterns:
-        full_raw_text = re.sub(pattern, '', full_raw_text, flags=re.DOTALL | re.MULTILINE)
-    
-    # Удаляем лишние пробелы/переносы
-    full_raw_text = re.sub(r'\n\s*\n', '\n', full_raw_text.strip())
-    
-    # Выводим очищенный текст после всех удалений
-    # debug_print(f"CLEANED FULL TEXT (первые 500 символов): {full_raw_text[:500]}...")
-    # debug_print(f"CLEANED FULL TEXT (полный): {full_raw_text}")
-    
-    return full_raw_text
-
-async def process_vacancy(vacancy: Dict[str, str], context: BrowserContext, progress_bar: tqdm, progress_lock: asyncio.Lock, semaphore: asyncio.Semaphore) -> Dict[str, Any]:
-    """Обрабатывает одну вакансию: LLM-оценка + генерация, отклик если подходит."""
-    title = vacancy["title"]
-    url = vacancy["url"]
-    debug_print(f"🚀 Обрабатываю вакансию: {title} (URL: {url})")  # Debug print
-    
-    # Имитация задержки
-    await asyncio.sleep(random.uniform(1, 3))
-    
-    page = await context.new_page()
-    await page.set_extra_http_headers({
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    })
-    
-    # Retry для загрузки (увеличен таймаут)
-    max_retries = 3
-    loaded = False
-    for attempt in range(max_retries):
-        try:
-            debug_print(f"📥 Попытка загрузки {title}, попытка {attempt + 1}/{max_retries}")
-            await page.goto(url, wait_until="domcontentloaded", timeout=90000)
-            await page.wait_for_load_state("networkidle", timeout=45000)  # Увеличено
-            debug_print(f"✅ Страница {title} загружена.")
-            loaded = True
-            break
-        except (PlaywrightTimeoutError, PlaywrightError) as e:
-            debug_print(f"❌ Таймаут/ошибка загрузки {title} (попытка {attempt + 1}): {e}")
-            if attempt < max_retries - 1:
-                await page.reload(wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(random.uniform(5, 8))
-            else:
-                debug_print(f"❌ Не удалось загрузить {title}, скип")
-                await page.close()
-                async with progress_lock:
-                    progress_bar.update(1)
-                return {"title": title, "status": "load_failed"}
-    
-    # CAPTCHA
-    try:
-        await page.wait_for_selector("text=Подтвердите, что вы не робот", timeout=5000)
-        print(f"🔒 CAPTCHA для {title}! Пройдите вручную...")  # Print для пользователя
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, input)
-        debug_print("✅ CAPTCHA пройдена.")
-    except PlaywrightTimeoutError:
-        pass
-    
-    # Имитация чтения
-    await asyncio.sleep(random.uniform(3, 5))
-    
-    # Проверка уже откликнутого
-    try:
-        success_elem = await page.query_selector("div[data-qa='success-response']")
-        if success_elem:
-            debug_print(f"ℹ️ Уже откликнуто на {title}, скип")
-            await page.close()
-            async with progress_lock:
-                progress_bar.update(1)
-            return {"title": title, "status": "already_applied"}
-    except Exception as e:
-        debug_print(f"⚠️ Ошибка проверки уже откликнутого: {e}")
-    
-    # Кнопка отклика (15 сек таймаут)
-    apply_selector = "a[data-qa='vacancy-response-link-top'], button[data-qa='vacancy-response-button']"
-    try:
-        apply_elem = await page.wait_for_selector(apply_selector, timeout=15000)
-        debug_print(f"✅ Кнопка отклика найдена для {title}")
-    except PlaywrightTimeoutError:
-        debug_print(f"❌ Кнопка отклика не найдена за 15 сек для {title}")
-        await page.close()
-        async with progress_lock:
-            progress_bar.update(1)
-        return {"title": title, "status": "no_apply_button"}
-    
-    # Парсинг описания
-    description = await parse_vacancy_description(page, title)
-    if not description:
-        debug_print(f"❌ Парсинг описания failed для {title}")
-        await page.close()
-        async with progress_lock:
-            progress_bar.update(1)
-        return {"title": title, "status": "parse_failed"}
-    debug_print(f"📄 Описание готово ({len(description)} символов)")
-    
-    # LLM
-    system_prompt = "Ты - ассистент по сопроводительным письмам. Отвечай только JSON."
-    user_prompt = PROMPTS["process"].format(profile=USER_PROFILE, user_wishes=USER_WISHES, title=title, description=description)
-    debug_print(f"🤖 Отправляю в LLM для {title}...")
-    llm_response = await robust_llm_query(system_prompt, user_prompt)
-    debug_print(f"📥 LLM ответ: {llm_response}")  # Debug print
-    
-    if isinstance(llm_response, tuple) and len(llm_response) == 3:
-        llm_result, model_name, provider_name = llm_response
-    else:
-        llm_result = llm_response
-        model_name = "command-a-03-2025"
-        provider_name = "CohereForAI_C4AI_Command"
-    
-    if llm_result and isinstance(llm_result, dict):
-        relevance_str = llm_result.get("relevance", "0")
-        relevance_score = int(relevance_str.split(':')[-1].strip()) if isinstance(relevance_str, str) else int(relevance_str or 0)
-        apply_decision = llm_result.get("apply", "").lower().strip()
-        letter = llm_result.get("letter", "")
-        
-        debug_print(f"📊 LLM: relevance={relevance_score}, apply='{apply_decision}', letter_len={len(letter)}")
-        
-        # Disclaimer
-        disclaimer = f'\n\nСопроводительное письмо составлено при помощи Большой Языковой Модели "{model_name}" провайдера "{provider_name}" используя библиотеку g4f. Эта же модель использовалась для определения соответствия вакансии резюме и пожеланиям соискателя. Исходный код программы для автоматизации откликов на hh.ru доступен в репозитории https://github.com/TryDotAtwo/AutoHHKek'
-        letter += disclaimer
-        
-        if relevance_score >= MAGIC_NUMBERS["RELEVANCE_THRESHOLD"] and apply_decision in ["да", "yes"] and letter.strip():
-            debug_print(f"🎯 {title} релевантна (score: {relevance_score}), откликаемся...")
-
-            try:
-                # Клик отклика
-                await page.click(apply_selector, force=True, timeout=15000)
-                await page.wait_for_load_state("networkidle", timeout=20000)
-                print(f"🔘 Клик по отклику успешен для {title}")
-                
-                # Шаг 1: Ждём базовый успех ("Резюме доставлено" + чат)
-                base_selectors = [
-                    ".magritte-text_style-primary.magritte-text_typography-title-4-semibold:has-text('Резюме доставлено')",
-                    "text=Резюме доставлено",
-                    "div[data-qa='success-response']"
-                ]
-                chat_selectors = [
-                    "text=Связаться с работодателем можно в чате",
-                    ".magritte-text_style-secondary.magritte-text_typography-paragraph-2-regular:has-text('Связаться с&nbsp;работодателем можно в&nbsp;чате')"
-                ]
-                
-                base_success = False
-                for sel in base_selectors:
-                    try:
-                        await page.wait_for_selector(sel, timeout=20000)
-                        base_success = True
-                        break
-                    except PlaywrightTimeoutError:
-                        continue
-                
-                chat_success = False
-                for sel in chat_selectors:
-                    try:
-                        await page.wait_for_selector(sel, timeout=10000)
-                        chat_success = True
-                        break
-                    except PlaywrightTimeoutError:
-                        continue
-                
-                if not (base_success and chat_success):
-                    print(f"❌ Базовый успех не подтверждён для {title}")
-                    await page.close()
-                    async with progress_lock:
-                        progress_bar.update(1)
-                    return {"title": title, "status": "no_base_success"}
-                
-                print(f"📤 Резюме доставлено для {title}! Отправляем письмо...")
-                
-                # Шаг 2: Ждём форму письма
-                form_selector = "textarea[name='text'], .magritte-native-element"
-                await page.wait_for_selector(form_selector, timeout=25000)
-                print(f"📝 Форма открылась для {title}")
-                
-                # Очищаем возможную ошибку (из HTML: aria-invalid)
-                await page.evaluate("""
-                    const textarea = document.querySelector('textarea[name="text"]');
-                    if (textarea) {
-                        textarea.value = '';
-                        textarea.setAttribute('aria-invalid', 'false');
-                    }
-                    const error = document.querySelector('.magritte-form-helper-error');
-                    if (error) error.remove();
-                """)
-                await asyncio.sleep(1)
-                
-                # Заполняем
-                message_field = page.locator(form_selector)
-                await message_field.focus()
-                await message_field.fill(letter)
-                await asyncio.sleep(random.uniform(1.5, 2.5))
-                print(f"✏️ Письмо заполнено для {title}")
-                
-                # Шаг 3: Submit
-                submit_selector = "button[data-qa='vacancy-response-letter-submit'], button[type='submit']"
-                submit_btn = await page.wait_for_selector(submit_selector, timeout=15000)
-                await submit_btn.click()
-                await page.wait_for_load_state("networkidle", timeout=20000)
-                print(f"📤 Submit отправлен для {title}")
-                
-                # Шаг 4: Ждём успех письма ("Сопроводительное письмо отправлено")
-                letter_success_selectors = [
-                    "text=Сопроводительное письмо отправлено",
-                    ".magritte-text:has-text('Сопроводительное письмо отправлено')",
-                    ".magritte-form-helper:not(.magritte-form-helper-error):has-text('отправлено')",
-                    "form#cover-letter:not(:has(textarea[aria-invalid='true']))"  # Fallback: форма чистая
-                ]
-                letter_success = False
-                for sel in letter_success_selectors:
-                    try:
-                        await page.wait_for_selector(sel, timeout=20000)
-                        letter_success = True
-                        break
-                    except PlaywrightTimeoutError:
-                        continue
-                
-                if letter_success:
-                    print(f"🎉 ✅ Успешный отклик с письмом на {title}!")
-                    return {"title": title, "status": "letter_sent"}
-                else:
-                    print(f"❌ Письмо не подтверждено для {title}. Проверьте вручную.")
-                    return {"title": title, "status": "letter_failed"}
-
-            except Exception as e:
-                print(f"💥 Ошибка отклика на {title}: {e}")
-                return {"title": title, "status": "error"}
-
-            finally:
-                await page.close()
-                async with progress_lock:
-                    progress_bar.update(1)
-                    remaining = progress_bar.total - progress_bar.n
-                    progress_bar.set_description(f"Обработано {progress_bar.n}/{progress_bar.total} (осталось: {remaining})")
-        else:
-            debug_print(f"⏭️ {title} не релевантна (score: {relevance_score}, apply: {apply_decision}), скип")
-    else:
-        debug_print(f"🤖 Ошибка LLM для {title}: {llm_result}, скип")
-    
-    await page.close()
-    async with progress_lock:
-        progress_bar.update(1)
-        remaining = progress_bar.total - progress_bar.n
-        progress_bar.set_description(f"Обработано {progress_bar.n}/{progress_bar.total} (осталось: {remaining})")
-    return {"title": title, "llm_result": llm_result, "status": "processed"}
-
-async def main():
-    """Основная асинхронная функция."""
+async def test_login():
+    """Тест только модуля login: настройка браузера и логин (независимый)."""
+    print(CONFIG["test_login_msg"])
     async with async_playwright() as p:
         context = await setup_browser_and_login(p)
-        
-        # Применяем stealth к context (для всех pages)
+        print(CONFIG["login_success"])
+        await context.close()
+
+async def test_resume_parser(resume_id: str = CONFIG["resume_id"]):
+    """Тест только модуля resume_parser: парсинг резюме (логин + парсинг, без других)."""
+    print(CONFIG["test_resume_msg"].format(resume_id=resume_id))
+    async with async_playwright() as p:
+        context = await setup_browser_and_login(p)
         stealth = Stealth()
         await stealth.apply_stealth_async(context)
-        
-        # Парсим резюме для обновления USER_PROFILE
         page = await context.new_page()
-        # Stealth уже применен
         await page.set_extra_http_headers({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": CONFIG["user_agent"]
         })
-        global USER_PROFILE
-        USER_PROFILE = await parse_resume(page, RESUME_ID, USER_WISHES)  # Добавлен аргумент USER_WISHES
-        await page.close()
-        
-        # Поиск вакансий
-        page = await context.new_page()
-        # Stealth уже применен
-        await page.set_extra_http_headers({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        })
-        vacancies, total_count = await search_vacancies(page, RESUME_ID)  # Увеличил лимит сбора, если нужно
-        # НЕ закрываем страницу поиска
-        # await page.close()  # Закомментировано, чтобы держать открытой
-
-        if not vacancies:
-            print("Вакансии не найдены.")
-            await context.close()
-            return
-
-        print(f"📊 Найдено {len(vacancies)} вакансий (из {total_count}). Concurrency: {MAGIC_NUMBERS['CONCURRENCY_LIMIT']}, интервал: {MAGIC_NUMBERS['PROCESS_INTERVAL']} сек")
-
-        # Семфор для ограничения concurrency
-        semaphore = asyncio.Semaphore(MAGIC_NUMBERS["CONCURRENCY_LIMIT"])
-        progress_lock = asyncio.Lock()
-
-        # Прогресс-бар
-        progress_bar = tqdm(total=len(vacancies), desc="Обработка вакансий", unit="vac")
-
-        async def bounded_process(vac):
-            async with semaphore:
-                # Задержка перед запуском (1-2 сек, кроме первой) - но основная задержка в main
-                if random.random() > 0.5:  # Имитация случайной задержки
-                    await asyncio.sleep(1 + random.random())
-                return await process_vacancy(vac, context, progress_bar, progress_lock, semaphore)
-
-        # Создаем задачи с интервалом 2 секунды между запуском
-        tasks = []
-        for i, vac in enumerate(vacancies):
-            if i > 0:
-                await asyncio.sleep(MAGIC_NUMBERS["PROCESS_INTERVAL"])  # Интервал между открытием вакансий
-            debug_print(f"🚀 Запуск {i+1}/{len(vacancies)}: {vac['title'][:50]}...")
-            task = asyncio.create_task(bounded_process(vac))
-            tasks.append(task)
-
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        progress_bar.close()
-        for result in results:
-            if isinstance(result, Exception):
-                print(f"💥 Ошибка в задаче: {result}")
-            else:
-                debug_print(f"✅ Завершено для {result['title']}: {result}")
-
+        profile = await parse_resume(page, resume_id, CONFIG["user_wishes"])
+        preview = profile[:CONFIG["profile_preview_len"]] + "..." if len(profile) > CONFIG["profile_preview_len"] else profile
+        print(CONFIG["resume_parsed"].format(profile=preview))
         await page.close()
         await context.close()
 
+async def test_vacancy_search(resume_id: str = CONFIG["resume_id"]):
+    """Тест только модуля vacancy_parser: поиск вакансий (логин + поиск, без других)."""
+    print(CONFIG["test_vacancy_search_msg"].format(resume_id=resume_id))
+    async with async_playwright() as p:
+        context = await setup_browser_and_login(p)
+        stealth = Stealth()
+        await stealth.apply_stealth_async(context)
+        page = await context.new_page()
+        await page.set_extra_http_headers({
+            "User-Agent": CONFIG["user_agent"]
+        })
+        vacancies, total = await search_vacancies(page, resume_id)
+        example = vacancies[0]['title'] if vacancies else 'Нет вакансий'
+        print(CONFIG["vacancies_found"].format(count=len(vacancies), total=total, example=example))
+        await page.close()
+        await context.close()
+
+async def test_llm_handler():
+    """Тест только модуля llm_handler: запрос к LLM (без браузера, тестовые данные из конфига)."""
+    print(CONFIG["test_llm_msg"])
+    user_prompt = CONFIG["prompts"]["process"].format(
+        profile=CONFIG["test_config"]["test_profile"],
+        user_wishes=CONFIG["user_wishes"],
+        title=CONFIG["test_config"]["test_vacancy_title"],
+        description=CONFIG["test_config"]["test_vacancy_description"]
+    )
+    response = await robust_llm_query(CONFIG["system_prompt"], user_prompt)
+    print(CONFIG["llm_success"].format(response=response))
+    if isinstance(response, tuple) and len(response) == 3:
+        print(CONFIG["llm_result"].format(result=response[0]))
+        print(CONFIG["llm_model"].format(model=response[1], provider=response[2]))
+
+async def test_vacancy_handler(vacancy_url: str = CONFIG["test_config"]["test_vacancy_url"], 
+                               vacancy_title: str = CONFIG["test_config"]["test_vacancy_title"], 
+                               resume_id: str = CONFIG["resume_id"]):
+    """Тест только модуля vacancy_handler: обработка вакансии (логин + process_vacancy, текст письма из конфига)."""
+    print(CONFIG["test_vacancy_handler_msg"].format(title=vacancy_title, resume_id=resume_id))
+    # Фиксированный текст для сопроводительного письма (для чистого теста кликов, без LLM)
+    FIXED_LETTER_TEXT = CONFIG["test_config"]["test_letter_text"]
+    # Фиксированные relevance и decision для теста (Да, score 8)
+    FIXED_RELEVANCE_SCORE = CONFIG["test_config"]["test_relevance_score"]
+    FIXED_APPLY_DECISION = CONFIG["test_config"]["test_apply_decision"]
+    # Фиксированные данные для LLM внутри process_vacancy (не передаем letter напрямую, т.к. функция делает LLM сама)
+    async with async_playwright() as p:
+        context = await setup_browser_and_login(p)
+        stealth = Stealth()
+        await stealth.apply_stealth_async(context)
+        vacancy = {"title": vacancy_title, "url": vacancy_url}
+        # Вызов process_vacancy с аргументами для старой сигнатуры (LLM сработает на тестовых profile/wishes/prompts)
+        result = await process_vacancy(
+            vacancy, context, 
+            CONFIG["test_config"]["test_profile"],  # user_profile
+            CONFIG["user_wishes"],  # user_wishes
+            CONFIG["prompts"],  # prompts (dict, чтобы избежать ошибки string indices)
+            CONFIG["magic_numbers"]["RELEVANCE_THRESHOLD"],  # relevance_threshold
+            CONFIG["magic_numbers"]["DEBUG_MODE"]  # debug_mode
+        )
+        print(CONFIG["vacancy_handler_result"].format(result=result))
+        await context.close()
+async def main():
+    """Основная асинхронная функция — оркестратор (использует модули независимо)."""
+    async with async_playwright() as p:
+        # Шаг 1: Логин (независимый модуль)
+        context = await setup_browser_and_login(p)
+        stealth = Stealth()
+        await stealth.apply_stealth_async(context)
+        
+        # Шаг 2: Парсинг резюме (независимый модуль)
+        page = await context.new_page()
+        await page.set_extra_http_headers({
+            "User-Agent": CONFIG["user_agent"]
+        })
+        global USER_PROFILE
+        USER_PROFILE = await parse_resume(page, CONFIG["resume_id"], CONFIG["user_wishes"])
+        await page.close()
+        
+        # Шаг 3: Поиск вакансий (независимый модуль)
+        page = await context.new_page()
+        await page.set_extra_http_headers({
+            "User-Agent": CONFIG["user_agent"]
+        })
+        vacancies, total_count = await search_vacancies(page, CONFIG["resume_id"])
+        await page.close()
+        
+        if not vacancies:
+            print(CONFIG["no_vacancies"])
+            await context.close()
+            return
+
+        concurrency = CONFIG["magic_numbers"]["CONCURRENCY_LIMIT"]
+        interval = CONFIG["magic_numbers"]["PROCESS_INTERVAL"]
+        debug_mode = CONFIG["magic_numbers"]["DEBUG_MODE"]
+        print(CONFIG["stats_msg"].format(
+            count=len(vacancies), total=total_count, 
+            concurrency=concurrency, interval=interval
+        ))
+
+        # Семфор для ограничения concurrency
+        semaphore = asyncio.Semaphore(concurrency)
+        progress_lock = asyncio.Lock()
+
+        # Прогресс-бар
+        progress_bar = tqdm(total=len(vacancies), desc=CONFIG["progress_desc"], unit=CONFIG["progress_unit"])
+
+        async def bounded_process(vac, index: int):
+            """Обёртка: print запуска перед семафором (чтобы принты шли постепенно)."""
+            title_preview = vac['title'][:CONFIG["title_preview_len"]] + "..." if len(vac['title']) > CONFIG["title_preview_len"] else vac['title']
+            print(CONFIG["launch_msg"].format(index=index+1, total=len(vacancies), title=title_preview))
+            async with semaphore:
+                # Имитация случайной задержки перед обработкой
+                if random.random() > CONFIG["random_delay_prob"]:
+                    await asyncio.sleep(CONFIG["random_delay_min"] + random.random() * CONFIG["random_delay_add"])
+                
+                # Шаг 4: Обработка вакансии (LLM, парсинг и отклик внутри vacancy_handler)
+                result = await process_vacancy(
+                    vac, context, 
+                    USER_PROFILE,  # user_profile
+                    CONFIG["user_wishes"],  # user_wishes
+                    CONFIG["prompts"],  # prompts (dict)
+                    CONFIG["magic_numbers"]["RELEVANCE_THRESHOLD"],  # relevance_threshold
+                    debug_mode  # debug_mode
+                )
+                
+                # Обновляем прогресс только после полного завершения вакансии
+                async with progress_lock:
+                    progress_bar.update(1)
+                    remaining = progress_bar.total - progress_bar.n
+                    progress_bar.set_description(CONFIG["progress_update"].format(
+                        processed=progress_bar.n, total=progress_bar.total, remaining=remaining
+                    ))
+                title_preview = result['title'][:CONFIG["title_preview_len"]] + "..." if len(result['title']) > CONFIG["title_preview_len"] else result['title']
+                print(CONFIG["complete_msg"].format(title=title_preview, status=result['status']))
+                return result
+
+        # Запускаем задачи последовательно с интервалом, ограничивая parallelism семафором
+        tasks = []
+        for i, vac in enumerate(vacancies):
+            task = asyncio.create_task(bounded_process(vac, i))
+            tasks.append(task)
+            if i < len(vacancies) - 1:  # Не ждем после последней
+                await asyncio.sleep(interval)
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        progress_bar.close()
+
+        # Фильтруем исключения
+        for result in results:
+            if isinstance(result, Exception):
+                print(CONFIG["task_error"].format(error=result))
+
+        # Итоговый вывод (опционально)
+        successful = sum(1 for r in results if not isinstance(r, Exception) and r.get('status') == 'letter_sent')
+        print(CONFIG["total_success"].format(success=successful, total=len(vacancies)))
+
+        await context.close()
+
+async def get_vacancy_description(context: BrowserContext, vac: Dict[str, str]) -> str:
+    """Вспомогательная функция для получения описания вакансии (из vacancy_handler, но вызывается в main для изоляции)."""
+    # Здесь можно реализовать парсинг описания, но для простоты — пустая строка (замените на реальный вызов)
+    return "Описание вакансии (получено из парсера)."
+
 if __name__ == "__main__":
+    # === ТЕСТЫ МОДУЛЕЙ (раскомментируйте нужный и запустите файл) ===
+    
+    # Тест login (просто логин)
+    # asyncio.run(test_login())
+    
+    # Тест resume_parser (парсинг резюме по RESUME_ID из конфига)
+    # asyncio.run(test_resume_parser())
+    
+    # Тест vacancy_search (поиск вакансий по RESUME_ID из конфига)
+    # asyncio.run(test_vacancy_search())
+    
+    # Тест llm_handler (запрос к LLM с тестовыми данными из конфига)
+    # asyncio.run(test_llm_handler())
+    
+    # Тест vacancy_handler (обработка конкретной вакансии: URL и title из примера, с фиксированным письмом)
+    # asyncio.run(test_vacancy_handler())
+
+    # Полный main (раскомментируйте для нормальной работы)
     asyncio.run(main())
