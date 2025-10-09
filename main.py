@@ -48,8 +48,8 @@ USER_PROFILE = ""  # Будет обновлено после парсинга
 # Конфигурация для тестов (тестовые данные для независимого тестирования модулей)
 TEST_CONFIG = {
     "test_profile": "Тестовый профиль специалиста по LLM: опыт 2+ года в NLP, разработка бенчмарков, промптинг",
-    "test_vacancy_title": "[Название вакансии]",
-    "test_vacancy_url": "[Ссылка на тест вакансию]",
+    "test_vacancy_title": "[Название тестовой вакансии]",
+    "test_vacancy_url": "[Ссылка на тестовую вакансию]",
     "test_vacancy_description": "Тестовое описание вакансии по ML. Требуется опыт в LLM и промптинге. Включите в письмо фразу 'Я готов к вызовам'.",
     "test_llm_response": {
         "relevance": "Оценка релевантности (0-10): 8",
@@ -97,10 +97,11 @@ PROMPTS = {
 MAGIC_NUMBERS = {
     "RELEVANCE_THRESHOLD": 7,
     "DESCRIPTION_MAX_LEN": 1000,  # Оставляем для совместимости, но не используем срез
-    "CONCURRENCY_LIMIT": 10,  # Вернули 5 для параллели
+    "CONCURRENCY_LIMIT": 1,  # Вернули 5 для параллели
     "PROCESS_INTERVAL": 5,  # Интервал между запуском новых задач в секундах (опционально, если нужно)
-    "DEBUG_MODE": False,  # Включено для отладки
-    "SCREENSHOT_DIR": "./screenshots"  # Директория для скриншотов
+    "DEBUG_MODE": True,  # Включено для отладки
+    "SCREENSHOT_DIR": "./screenshots",  # Директория для скриншотов
+    "PAGE_TIMEOUT": 150  # Таймаут для закрытия страницы в секундах (5 минут)
 }
 
 CONFIG = {
@@ -142,6 +143,22 @@ CONFIG = {
     "random_delay_add": 1
 }
 
+async def create_page_with_auto_close(context: BrowserContext, user_agent: str) -> Tuple[Page, asyncio.Task]:
+    """Создает страницу с фоновой задачей для автоматического закрытия через PAGE_TIMEOUT секунд."""
+    page = await context.new_page()
+    await page.set_extra_http_headers({"User-Agent": user_agent})
+    
+    async def auto_closer():
+        await asyncio.sleep(CONFIG["magic_numbers"]["PAGE_TIMEOUT"])
+        try:
+            await page.close()
+            print(f"⏰ Автоматическое закрытие страницы через {CONFIG['magic_numbers']['PAGE_TIMEOUT']} сек.")
+        except Exception as e:
+            print(f"⚠️ Ошибка при автоматическом закрытии страницы: {e}")
+    
+    closer_task = asyncio.create_task(auto_closer())
+    return page, closer_task
+
 async def test_login():
     """Тест только модуля login: настройка браузера и логин (независимый)."""
     print(CONFIG["test_login_msg"])
@@ -157,15 +174,18 @@ async def test_resume_parser(resume_id: str = CONFIG["resume_id"]):
         context = await setup_browser_and_login(p)
         stealth = Stealth()
         await stealth.apply_stealth_async(context)
-        page = await context.new_page()
-        await page.set_extra_http_headers({
-            "User-Agent": CONFIG["user_agent"]
-        })
-        profile = await parse_resume(page, resume_id, CONFIG["user_wishes"])
-        preview = profile[:CONFIG["profile_preview_len"]] + "..." if len(profile) > CONFIG["profile_preview_len"] else profile
-        print(CONFIG["resume_parsed"].format(profile=preview))
-        await page.close()
-        await context.close()
+        page, closer_task = await create_page_with_auto_close(context, CONFIG["user_agent"])
+        try:
+            profile = await parse_resume(page, resume_id, CONFIG["user_wishes"])
+            preview = profile[:CONFIG["profile_preview_len"]] + "..." if len(profile) > CONFIG["profile_preview_len"] else profile
+            print(CONFIG["resume_parsed"].format(profile=preview))
+        finally:
+            closer_task.cancel()
+            try:
+                await page.close()
+            except:
+                pass
+            await context.close()
 
 async def test_vacancy_search(resume_id: str = CONFIG["resume_id"]):
     """Тест только модуля vacancy_parser: поиск вакансий (логин + поиск, без других)."""
@@ -174,15 +194,18 @@ async def test_vacancy_search(resume_id: str = CONFIG["resume_id"]):
         context = await setup_browser_and_login(p)
         stealth = Stealth()
         await stealth.apply_stealth_async(context)
-        page = await context.new_page()
-        await page.set_extra_http_headers({
-            "User-Agent": CONFIG["user_agent"]
-        })
-        vacancies, total = await search_vacancies(page, resume_id)
-        example = vacancies[0]['title'] if vacancies else 'Нет вакансий'
-        print(CONFIG["vacancies_found"].format(count=len(vacancies), total=total, example=example))
-        await page.close()
-        await context.close()
+        page, closer_task = await create_page_with_auto_close(context, CONFIG["user_agent"])
+        try:
+            vacancies, total = await search_vacancies(page, resume_id)
+            example = vacancies[0]['title'] if vacancies else 'Нет вакансий'
+            print(CONFIG["vacancies_found"].format(count=len(vacancies), total=total, example=example))
+        finally:
+            closer_task.cancel()
+            try:
+                await page.close()
+            except:
+                pass
+            await context.close()
 
 async def test_llm_handler():
     """Тест только модуля llm_handler: запрос к LLM (без браузера, тестовые данные из конфига)."""
@@ -226,6 +249,7 @@ async def test_vacancy_handler(vacancy_url: str = CONFIG["test_config"]["test_va
         )
         print(CONFIG["vacancy_handler_result"].format(result=result))
         await context.close()
+
 async def main():
     """Основная асинхронная функция — оркестратор (использует модули независимо)."""
     async with async_playwright() as p:
@@ -235,21 +259,27 @@ async def main():
         await stealth.apply_stealth_async(context)
         
         # Шаг 2: Парсинг резюме (независимый модуль)
-        page = await context.new_page()
-        await page.set_extra_http_headers({
-            "User-Agent": CONFIG["user_agent"]
-        })
-        global USER_PROFILE
-        USER_PROFILE = await parse_resume(page, CONFIG["resume_id"], CONFIG["user_wishes"])
-        await page.close()
+        page, closer_task_resume = await create_page_with_auto_close(context, CONFIG["user_agent"])
+        try:
+            global USER_PROFILE
+            USER_PROFILE = await parse_resume(page, CONFIG["resume_id"], CONFIG["user_wishes"])
+        finally:
+            closer_task_resume.cancel()
+            try:
+                await page.close()
+            except:
+                pass
         
         # Шаг 3: Поиск вакансий (независимый модуль)
-        page = await context.new_page()
-        await page.set_extra_http_headers({
-            "User-Agent": CONFIG["user_agent"]
-        })
-        vacancies, total_count = await search_vacancies(page, CONFIG["resume_id"])
-        await page.close()
+        page, closer_task_search = await create_page_with_auto_close(context, CONFIG["user_agent"])
+        try:
+            vacancies, total_count = await search_vacancies(page, CONFIG["resume_id"])
+        finally:
+            closer_task_search.cancel()
+            try:
+                await page.close()
+            except:
+                pass
         
         if not vacancies:
             print(CONFIG["no_vacancies"])
