@@ -366,6 +366,33 @@ body {
   min-height: 10rem;
 }
 
+.llm-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.llm-gate-overlay__panel {
+  position: relative;
+  z-index: 1;
+  width: min(680px, calc(100vw - 3rem));
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 28px;
+  border: 1px solid rgba(23, 33, 43, 0.12);
+  background: rgba(248, 250, 252, 0.98);
+  box-shadow: 0 32px 80px rgba(23, 33, 43, 0.2);
+}
+
+.llm-gate-overlay__panel h2 {
+  margin: 0;
+  font: 700 clamp(1.6rem, 3vw, 2.4rem)/1.05 var(--serif);
+}
+
 .chat-panel-head,
 .panel-head,
 .lane-head,

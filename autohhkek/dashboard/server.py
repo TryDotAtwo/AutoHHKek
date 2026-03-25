@@ -14,9 +14,11 @@ from autohhkek.app.commands import (
     begin_intake_dialog,
     build_detailed_intake_prompt,
     build_rules_from_profile,
+    choose_heuristic_fallback,
     confirm_intake_rules,
     continue_intake_dialog,
     import_rules_text,
+    postpone_until_llm_available,
     run_analyze,
     run_apply_batch,
     run_apply_submit,
@@ -620,6 +622,10 @@ def _handler_factory(project_root: Path):
                         result = run_resume(store)
                     elif parsed.path == "/api/actions/confirm-intake":
                         result = confirm_intake_rules(store)
+                    elif parsed.path == "/api/actions/llm-fallback-heuristics":
+                        result = choose_heuristic_fallback(store, stage=str(body.get("stage") or "resume_intake"))
+                    elif parsed.path == "/api/actions/llm-wait":
+                        result = postpone_until_llm_available(store, stage=str(body.get("stage") or "resume_intake"))
                     elif parsed.path == "/api/actions/plan-filters":
                         result = run_plan_filters(store)
                     elif parsed.path == "/api/actions/run-selected":

@@ -761,6 +761,7 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
         "change_count": int(dashboard_state.get("last_resume_sync_change_count") or 0),
     }
     intake_dialog = dict(dashboard_state.get("intake_dialog") or {})
+    llm_gate = dict(dashboard_state.get("llm_gate") or {})
     apply_batch_job = {
         "running": bool(dashboard_state.get("apply_batch_running")),
         "category": str(dashboard_state.get("apply_batch_category") or ""),
@@ -791,6 +792,7 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
         "auto_setup": auto_setup,
         "profile_sync": profile_sync,
         "intake_dialog": intake_dialog,
+        "llm_gate": llm_gate,
         "apply_batch_job": apply_batch_job,
         "action_catalog": {
             "backends": AVAILABLE_LLM_BACKENDS,
@@ -798,6 +800,8 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
             "actions": [
                 "intake",
                 "confirm-intake",
+                "llm-fallback-heuristics",
+                "llm-wait",
                 "build-rules",
                 "import-rules",
                 "resume",

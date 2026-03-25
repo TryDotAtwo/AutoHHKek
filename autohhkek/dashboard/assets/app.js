@@ -995,6 +995,35 @@ function renderBlockingIntakeOverlay(snapshot) {
   });
 }
 
+function renderLlmGateOverlay(snapshot) {
+  document.getElementById("llm-gate-overlay")?.remove();
+  const gate = snapshot?.llm_gate || {};
+  if (!gate.active) return;
+  const shell = document.querySelector(".app-shell");
+  if (!shell) return;
+  const overlay = document.createElement("section");
+  overlay.id = "llm-gate-overlay";
+  overlay.className = "llm-gate-overlay";
+  overlay.innerHTML = `
+    <div class="intake-overlay__backdrop"></div>
+    <div class="llm-gate-overlay__panel">
+      <span class="panel-kicker">LLM недоступна</span>
+      <h2>${escapeHtml(gate.title || "Не удалось обратиться к модели")}</h2>
+      <p class="panel-lead">${escapeHtml(gate.message || "На этом этапе нужен агентный разбор через OpenRouter. Сейчас модель недоступна.")}</p>
+      <div class="note">
+        <strong>Что делать дальше</strong>
+        <p>Можно либо продолжить на эвристиках как временный режим, либо ничего не запускать и дождаться, пока LLM снова станет доступна.</p>
+      </div>
+      <div class="inline-actions">
+        <button class="button button--primary" type="button" data-dashboard-action="llm-fallback-heuristics">Продолжить на эвристиках</button>
+        <button class="button" type="button" data-dashboard-action="llm-wait">Ждать LLM</button>
+      </div>
+    </div>
+  `;
+  shell.appendChild(overlay);
+  wireActionButtons(overlay);
+}
+
 function focusChatInput(promptText = "") {
   setActiveTab("agent", { userInitiated: true, pauseMs: 8000 });
   const input = document.getElementById("chat-input");
@@ -1094,6 +1123,8 @@ async function runDashboardAction(actionId, chatPrompt = "") {
     "hh-login": ["/api/actions/hh-login", {}],
     "hh-resumes": ["/api/actions/hh-resumes", {}],
     "confirm-intake": ["/api/actions/confirm-intake", {}],
+    "llm-fallback-heuristics": ["/api/actions/llm-fallback-heuristics", { stage: state.snapshot?.llm_gate?.stage || "resume_intake" }],
+    "llm-wait": ["/api/actions/llm-wait", { stage: state.snapshot?.llm_gate?.stage || "resume_intake" }],
     "resume-sync": ["/api/actions/resume", {}],
     "build-rules": ["/api/actions/build-rules", {}],
     "plan-filters": ["/api/actions/plan-filters", {}],
@@ -1451,6 +1482,7 @@ function renderSnapshot(snapshot) {
   renderVacancyDetail(snapshot);
   renderActivity(snapshot);
   renderBlockingIntakeOverlay(snapshot);
+  renderLlmGateOverlay(snapshot);
   updateVisibleTab();
   restoreScrollState();
 }
