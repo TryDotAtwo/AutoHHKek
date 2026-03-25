@@ -1,12 +1,13 @@
 # AutoHHKek
 
 # БОТ СПАМАНУЛ, ТУТ ВСЁ СЛОМАНО НАХУЙ ЖПТШКОЙ 5.4 ПОФИКШУ ЗАВТРА (26.03)
-
+<img width="1871" height="483" alt="image" src="https://github.com/user-attachments/assets/f1bf77c3-31fb-4cef-b44b-b9908cacb335" />
 
 
 Script-first hh.ru automation with agent review, long-term memory, vacancy analysis, intake, resume drafting, apply planning, and a local dashboard.
 
 The project entrypoint is the root file:
+
 
 ```powershell
 python main.py
