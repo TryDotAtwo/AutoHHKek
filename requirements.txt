@@ -1,0 +1,5 @@
+g4f>=7.3,<8
+openai>=2.29,<3
+openai-agents>=0.12,<1
+playwright>=1.50,<2
+pytest>=8,<9

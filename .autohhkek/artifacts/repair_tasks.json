@@ -1,0 +1,61 @@
+[
+  {
+    "action": "click_apply_button",
+    "payload": {
+      "vacancy_id": "vac-1"
+    },
+    "error": "dashboard_smoke",
+    "prompt": "Use Playwright MCP to repair an hh.ru automation step.\nAction: click_apply_button\nPayload: {'vacancy_id': 'vac-1'}\nFailure: dashboard_smoke\nFind a working selector path or interaction sequence, then return a reusable script patch that preserves the script-first runtime.",
+    "repair_patch_path": "C:\\Users\\Иван Литвак\\source\\repos\\AutoHHKek\\AutoHHKek\\.autohhkek\\artifacts\\repairs\\click_apply_button_patch.diff",
+    "repair_test_path": "C:\\Users\\Иван Литвак\\source\\repos\\AutoHHKek\\AutoHHKek\\.autohhkek\\artifacts\\repairs\\test_click_apply_button_repair.py",
+    "mcp_ready": true,
+    "mcp_stdio": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "encoding": "utf-8"
+    },
+    "openai_ready": false,
+    "g4f_ready": true,
+    "selected_llm_backend": "openrouter",
+    "openrouter_ready": true,
+    "status": "error",
+    "worker_error": "Server not initialized. Make sure you call `connect()` first.",
+    "task_key": "f402b329ee14bf0a95c3321cb88870b665699cee",
+    "requested_llm_backend": "openrouter"
+  },
+  {
+    "action": "click_apply_button",
+    "payload": {
+      "vacancy_id": "vac-1"
+    },
+    "error": "dashboard_smoke",
+    "prompt": "Use Playwright MCP to repair an hh.ru automation step.\nAction: click_apply_button\nPayload: {'vacancy_id': 'vac-1'}\nFailure: dashboard_smoke\nFind a working selector path or interaction sequence, then return a reusable script patch that preserves the script-first runtime.",
+    "repair_patch_path": "C:\\Users\\Иван Литвак\\source\\repos\\AutoHHKek\\AutoHHKek\\.autohhkek\\artifacts\\repairs\\click_apply_button_patch.diff",
+    "repair_test_path": "C:\\Users\\Иван Литвак\\source\\repos\\AutoHHKek\\AutoHHKek\\.autohhkek\\artifacts\\repairs\\test_click_apply_button_repair.py",
+    "mcp_ready": false,
+    "mcp_stdio": {},
+    "openai_ready": false,
+    "g4f_ready": true,
+    "selected_llm_backend": "openai",
+    "status": "unavailable"
+  },
+  {
+    "action": "click_apply_button",
+    "payload": {
+      "vacancy_id": "vac-1"
+    },
+    "error": "dashboard_smoke",
+    "prompt": "Use Playwright MCP to repair an hh.ru automation step.\nAction: click_apply_button\nPayload: {'vacancy_id': 'vac-1'}\nFailure: dashboard_smoke\nFind a working selector path or interaction sequence, then return a reusable script patch that preserves the script-first runtime.",
+    "repair_patch_path": "C:\\Users\\Иван Литвак\\source\\repos\\AutoHHKek\\AutoHHKek\\.autohhkek\\artifacts\\repairs\\click_apply_button_patch.diff",
+    "repair_test_path": "C:\\Users\\Иван Литвак\\source\\repos\\AutoHHKek\\AutoHHKek\\.autohhkek\\artifacts\\repairs\\test_click_apply_button_repair.py",
+    "mcp_ready": false,
+    "mcp_stdio": {},
+    "openai_ready": false,
+    "g4f_ready": true,
+    "selected_llm_backend": "openai",
+    "status": "unavailable"
+  }
+]

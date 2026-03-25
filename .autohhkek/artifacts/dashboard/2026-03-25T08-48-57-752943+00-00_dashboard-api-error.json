@@ -1,0 +1,8 @@
+{
+  "path": "/api/actions/apply-submit",
+  "error": "BrowserType.launch: Executable doesn't exist at C:\\Users\\���� ��⢠�\\AppData\\Local\\ms-playwright\\chromium-1208\\chrome-win64\\chrome.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     playwright install                                     ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝",
+  "body": {
+    "vacancy_id": "3235779ec6aef3e1",
+    "cover_letter": "Здравствуйте! Меня заинтересовала вакансия Data Scientist (RAG Systems) — Middle+ / Senior. У меня 3 года(лет) опыта в направлении Ищу должность LLM Engineer/Research Scientist в области NLP/, основной стек включает Python, NLP, LLM. Not a strong fit: remote-only preference not met; missing explicit required skills in the listing; salary not disclosed. Готов подробно ответить на вопросы и при необходимости пройти анкету или тест."
+  }
+}

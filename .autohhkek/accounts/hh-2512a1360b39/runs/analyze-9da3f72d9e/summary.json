@@ -1,0 +1,20 @@
+{
+  "run_id": "analyze-9da3f72d9e",
+  "mode": "analyze",
+  "status": "completed",
+  "started_at": "2026-03-25T12:43:55.400505+00:00",
+  "finished_at": "2026-03-25T12:43:55.400505+00:00",
+  "processed": 0,
+  "counts": {
+    "fit": 0,
+    "doubt": 0,
+    "no_fit": 0
+  },
+  "notes": [
+    "Режим анализа не делает отклики.",
+    "Перед анализом правила и hh.ru фильтры пересобраны из текущего профиля.",
+    "Источник вакансий: Не удалось обновить вакансии с hh.ru: Page.goto: net::ERR_NETWORK_CHANGED at https://hh.ru/search/vacancy?resume=07687234ff0dd3ea5f0039ed1f47594655564f&from=resumelist&search_field=name&search_field=company_name&search_field=description&enable_snippets=true&forceFiltersSaving=true&items_on_page=100&work_format=REMOTE\nCall log:\n  - navigating to \"https://hh.ru/search/vacancy?resume=07687234ff0dd3ea5f0039ed1f47594655564f&from=resumelist&search_field=name&search_field=company_name&search_field=description&enable_snippets=true&forceFiltersSaving=true&items_on_page=100&work_format=REMOTE\", waiting until \"domcontentloaded\"\n",
+    "LLM backend: requested openrouter, effective openrouter.",
+    "Для каждой вакансии сохранены категория и причины."
+  ]
+}

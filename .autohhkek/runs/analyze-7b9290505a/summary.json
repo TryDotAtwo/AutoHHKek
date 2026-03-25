@@ -1,0 +1,20 @@
+{
+  "run_id": "analyze-7b9290505a",
+  "mode": "analyze",
+  "status": "completed",
+  "started_at": "2026-03-25T07:52:18.841114+00:00",
+  "finished_at": "2026-03-25T07:52:18.841114+00:00",
+  "processed": 120,
+  "counts": {
+    "fit": 0,
+    "doubt": 24,
+    "no_fit": 96
+  },
+  "notes": [
+    "Режим анализа не делает отклики.",
+    "Перед анализом правила и hh.ru фильтры пересобраны из текущего профиля.",
+    "Источник вакансий: Fetched 120 live vacancy records from hh.ru.",
+    "LLM backend: requested openrouter, effective openrouter.",
+    "Для каждой вакансии сохранены категория и причины."
+  ]
+}

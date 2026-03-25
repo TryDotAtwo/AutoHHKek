@@ -1,0 +1,12 @@
+{
+  "llm_backend": "openrouter",
+  "dashboard_mode": "analyze",
+  "mode_selected": true,
+  "auto_run_repair_worker": false,
+  "openai_model": "gpt-5.4",
+  "openrouter_model": "openai/gpt-5-nano",
+  "g4f_model": "gpt-4o-mini",
+  "g4f_provider": "",
+  "selected_resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f",
+  "agent_mode": "analyze"
+}

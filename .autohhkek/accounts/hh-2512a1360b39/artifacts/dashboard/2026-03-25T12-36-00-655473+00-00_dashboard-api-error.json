@@ -1,0 +1,8 @@
+{
+  "path": "/api/chat",
+  "error": "intake is required before this action.",
+  "body": {
+    "message": "собери резюме",
+    "selected_vacancy_id": ""
+  }
+}

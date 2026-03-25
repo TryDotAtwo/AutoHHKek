@@ -1,0 +1,306 @@
+{
+  "last_hh_login_at": "2026-03-25T12:18:50.541561+00:00",
+  "last_resume_catalog_at": "2026-03-25T16:36:05.341975+00:00",
+  "last_resume_catalog_status": "completed",
+  "last_resume_catalog_count": 1,
+  "last_rules_rebuilt_at": "2026-03-25T18:31:13.201500+00:00",
+  "last_intake_at": "2026-03-25T18:31:13.225706+00:00",
+  "last_intake_source": "chat",
+  "last_intake_raw_text": "роли LLM Engineer, NLP Engineer. Must-have: Python, NLP, LLM. Только remote. Исключить госструктуры, университеты, research institute. Зарплата от 350000. Домены: LLM products, AI infra. Дополнительно: сопроводительное только на русском.",
+  "last_analysis_at": "2026-03-25T16:36:46.445631+00:00",
+  "last_live_refresh_total_available": 1296,
+  "last_live_refresh_count": 1135,
+  "last_live_refresh_new_count": 1135,
+  "last_live_refresh_pages_parsed": 13,
+  "last_live_refresh_search_url": "https://hh.ru/search/vacancy?resume=07687234ff0dd3ea5f0039ed1f47594655564f&from=resumelist&search_field=name&search_field=company_name&search_field=description&enable_snippets=true&forceFiltersSaving=true&items_on_page=100&work_format=REMOTE",
+  "last_live_refresh_message": "Поиск hh.ru завершен: в очереди 1135 вакансий, новых 1135.",
+  "analysis_progress_done": 0,
+  "analysis_progress_total": 0,
+  "analysis_progress_title": "",
+  "analysis_progress_strategy": "",
+  "analysis_progress_updated_at": "2026-03-25T16:36:46.459054+00:00",
+  "apply_daily_bucket": "2026-03-25",
+  "apply_daily_count": 2,
+  "last_apply_submit_at": "2026-03-25T16:42:21.367388+00:00",
+  "apply_batch_running": true,
+  "apply_batch_category": "fit",
+  "apply_batch_message": "РРґС‘С‚ РїР°РєРµС‚РЅС‹Р№ РѕС‚РєР»РёРє РїРѕ РєРѕР»РѕРЅРєРµ fit.",
+  "apply_batch_started_at": "2026-03-25T18:15:53.722106+00:00",
+  "apply_batch_finished_at": "2026-03-25T16:42:21.375860+00:00",
+  "last_apply_plan_at": "2026-03-25T17:52:09.320507+00:00",
+  "last_resume_sync_at": "2026-03-25T18:30:52.235769+00:00",
+  "last_resume_sync_status": "no_changes",
+  "last_resume_sync_resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f",
+  "last_resume_sync_title": "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs",
+  "last_resume_sync_change_count": 0,
+  "last_resume_sync_message": "Синхронизация профиля завершена, новых изменений не найдено.",
+  "intake_dialog": {
+    "active": true,
+    "completed": false,
+    "step_index": 0,
+    "questions": [
+      {
+        "id": "target_titles",
+        "title": "РљР°РєРёРµ СЂРѕР»Рё СЃС‡РёС‚Р°РµРј С†РµР»РµРІС‹РјРё РїСЂСЏРјРѕ СЃРµР№С‡Р°СЃ?",
+        "hint": "Р­С‚Рѕ РіР»Р°РІРЅС‹Р№ С„РёР»СЊС‚СЂ РґР»СЏ РїРѕРёСЃРєР° Рё РѕС†РµРЅРєРё РІР°РєР°РЅСЃРёР№.",
+        "example": "РџСЂРёРјРµСЂ: \"LLM Engineer, NLP Engineer, Research Scientist in NLP, Applied Scientist\".",
+        "prefill": "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs",
+        "importance": "critical"
+      },
+      {
+        "id": "required_skills",
+        "title": "Р§С‚Рѕ РґР»СЏ РІР°СЃ must-have РІРѕ РІР°РєР°РЅСЃРёРё?",
+        "hint": "Р•СЃР»Рё СЌС‚РѕРіРѕ РЅРµС‚, РІР°РєР°РЅСЃРёСЋ РѕР±С‹С‡РЅРѕ РЅРµ СЃС‚РѕРёС‚ РїСЂРѕРґРІРёРіР°С‚СЊ РґР°Р»СЊС€Рµ.",
+        "example": "РџСЂРёРјРµСЂ: \"Python, NLP/LLM, СЃРёР»СЊРЅС‹Р№ РёРЅР¶РµРЅРµСЂРЅС‹Р№ РёР»Рё РёСЃСЃР»РµРґРѕРІР°С‚РµР»СЊСЃРєРёР№ РєРѕРЅС‚РµРєСЃС‚\".",
+        "prefill": "Python, NLP, LLM",
+        "importance": "critical"
+      },
+      {
+        "id": "work_mode",
+        "title": "РљР°РєРѕР№ С„РѕСЂРјР°С‚ СЂР°Р±РѕС‚С‹ РґРѕРїСѓСЃС‚РёРј?",
+        "hint": "Р­С‚Рѕ РєСЂРёС‚РёС‡РЅРѕ РґР»СЏ РѕС‚Р±РѕСЂР°: remote, РіРёР±СЂРёРґ, РѕС„РёСЃ, СЂРµР»РѕРєР°С†РёСЏ, СЃС‚СЂР°РЅС‹, С‡Р°СЃРѕРІС‹Рµ РїРѕСЏСЃР°.",
+        "example": "РџСЂРёРјРµСЂ: \"РўРѕР»СЊРєРѕ remote. Р РѕСЃСЃРёСЏ РёР»Рё РјРµР¶РґСѓРЅР°СЂРѕРґРЅС‹Рµ РєРѕРјР°РЅРґС‹. РџРµСЂРµРµР·Рґ РЅРµ РЅСѓР¶РµРЅ\".",
+        "prefill": "",
+        "importance": "critical"
+      },
+      {
+        "id": "excluded_companies",
+        "title": "РљР°РєРёРµ РєРѕРјРїР°РЅРёРё РёР»Рё С‚РёРїС‹ СЂР°Р±РѕС‚РѕРґР°С‚РµР»РµР№ С‚РѕС‡РЅРѕ РёСЃРєР»СЋС‡Р°РµРј?",
+        "hint": "Р­С‚Рѕ РЅСѓР¶РЅРѕ, С‡С‚РѕР±С‹ РЅРµ С‚СЂР°С‚РёС‚СЊ РІСЂРµРјСЏ РЅР° Р·Р°РІРµРґРѕРјРѕ РЅРµР¶РµР»Р°С‚РµР»СЊРЅС‹Рµ РІР°РєР°РЅСЃРёРё.",
+        "example": "РџСЂРёРјРµСЂ: \"РіРѕСЃСЃС‚СЂСѓРєС‚СѓСЂС‹, СѓРЅРёРІРµСЂСЃРёС‚РµС‚С‹, research institutes, РѕРєРѕР»РѕРіРѕСЃ РїСЂРѕРµРєС‚С‹\".",
+        "prefill": "",
+        "importance": "critical"
+      },
+      {
+        "id": "forbidden_keywords",
+        "title": "РљР°РєРёРµ СЃС‚РѕРї-СЃР»РѕРІР° Рё РїСЂРёР·РЅР°РєРё СЂРµР¶СѓС‚ РІР°РєР°РЅСЃРёСЋ СЃСЂР°Р·Сѓ?",
+        "hint": "Р­С‚Рѕ РїРѕРјРѕРіР°РµС‚ Р±С‹СЃС‚СЂРѕ РІС‹С‡РёС‰Р°С‚СЊ С€СѓРј РёР· Р±РѕР»СЊС€РѕР№ РІС‹РґР°С‡Рё.",
+        "example": "РџСЂРёРјРµСЂ: \"CV only, computer vision only, sales, РїСЂРµРїРѕРґР°РІР°РЅРёРµ, РіРѕСЃСЃР»СѓР¶Р±Р°\".",
+        "prefill": "",
+        "importance": "critical"
+      },
+      {
+        "id": "salary_min",
+        "title": "РљР°РєР°СЏ РјРёРЅРёРјР°Р»СЊРЅР°СЏ РєРѕРјРїРµРЅСЃР°С†РёСЏ РёРјРµРµС‚ СЃРјС‹СЃР»?",
+        "hint": "РњРѕР¶РЅРѕ РЅР°Р·РІР°С‚СЊ РЅРёР¶РЅСЋСЋ РіСЂР°РЅРёС†Сѓ РёР»Рё РїСЂСЏРјРѕ СЃРєР°Р·Р°С‚СЊ, С‡С‚Рѕ Р¶РµСЃС‚РєРѕРіРѕ РїРѕСЂРѕРіР° РЅРµС‚.",
+        "example": "РџСЂРёРјРµСЂ: \"РћС‚ 350000 net\" РёР»Рё \"Р–РµСЃС‚РєРѕРіРѕ РїРѕСЂРѕРіР° РЅРµС‚\".",
+        "prefill": "",
+        "importance": "critical"
+      },
+      {
+        "id": "industries",
+        "title": "РљР°РєРёРµ РґРѕРјРµРЅС‹ РІР°Рј РёРЅС‚РµСЂРµСЃРЅС‹, Р° РєР°РєРёРµ РЅРµР¶РµР»Р°С‚РµР»СЊРЅС‹?",
+        "hint": "Р­С‚Рѕ РїРѕРјРѕРіР°РµС‚ Р°РіРµРЅС‚Сѓ РїРѕРЅРёРјР°С‚СЊ СЃРјС‹СЃР» РІР°РєР°РЅСЃРёРё, Р° РЅРµ С‚РѕР»СЊРєРѕ СЃР»РѕРІР° РІ РЅР°Р·РІР°РЅРёРё.",
+        "example": "РџСЂРёРјРµСЂ: \"РёРЅС‚РµСЂРµСЃРЅРѕ: LLM products, AI infra; РЅРµ С…РѕС‡Сѓ: РіРѕСЃСѓС…Р°, С‡РёСЃС‚Р°СЏ Р°РєР°РґРµРјРёСЏ\".",
+        "prefill": "",
+        "importance": "important"
+      },
+      {
+        "id": "preferred_skills",
+        "title": "Р§С‚Рѕ Р¶РµР»Р°С‚РµР»СЊРЅРѕ, РЅРѕ РЅРµ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ?",
+        "hint": "Р­С‚Рѕ РїРѕРІС‹С€Р°РµС‚ РїСЂРёРѕСЂРёС‚РµС‚, РЅРѕ РЅРµ СЏРІР»СЏРµС‚СЃСЏ Р¶РµСЃС‚РєРёРј СЃС‚РѕРї-С„Р°РєС‚РѕСЂРѕРј.",
+        "example": "РџСЂРёРјРµСЂ: \"RAG, MLOps, production ML, agents\".",
+        "prefill": "Python, NLP, LLM",
+        "importance": "important"
+      },
+      {
+        "id": "languages",
+        "title": "РљР°РєРёРµ СЏР·С‹РєРё СЂРµР°Р»СЊРЅРѕ СЂР°Р±РѕС‡РёРµ?",
+        "hint": "Р­С‚Рѕ РІР»РёСЏРµС‚ РЅР° РїРѕРёСЃРє, Р°РЅРєРµС‚С‹ Рё С‚РѕРЅ СЃРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅС‹С….",
+        "example": "РџСЂРёРјРµСЂ: \"Р СѓСЃСЃРєРёР№ СЃРІРѕР±РѕРґРЅРѕ, Р°РЅРіР»РёР№СЃРєРёР№ C1\".",
+        "prefill": "Русский",
+        "importance": "optional"
+      },
+      {
+        "id": "links",
+        "title": "РљР°РєРёРµ СЃСЃС‹Р»РєРё СЃС‚РѕРёС‚ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РІ РѕС‚РєР»РёРєР°С…?",
+        "hint": "GitHub, Scholar, LinkedIn, РїРѕСЂС‚С„РѕР»РёРѕ Рё СЃС‚Р°С‚СЊРё СѓСЃРёР»РёРІР°СЋС‚ РїСЂРѕС„РёР»СЊ.",
+        "example": "РџСЂРёРјРµСЂ: \"GitHub ..., Scholar ..., LinkedIn ...\".",
+        "prefill": "https://www.researchgate.net/profile/Ivan-Litvak, https://github.com/TryDotAtwo, https://huggingface.co/datasets/lawful-good-project/sud-resh-benchmark, https://vk.cc/cQ0G9b, https://hh.ru/resume/07687234ff0dd3ea5f0039ed1f47594655564f, https://github.com/TryDotAtwo/Anal_Russia_Klinik2025, https://github.com/TryDotAtwo/TgBotWithLLMInterface, https://github.com/TryDotAtwo/TgBot-ForEducation, https://github.com/TryDotAtwo/AutoHHKek, https://huggingface.co/TryDotAtwo/ruBERT-ruLaw, https://github.com/TryDotAtwo/Agentic_Solve_Math, https://тупа.рф, https://huggingface.co/datasets/lawful-good-project/sud_resh_evaluated_llms_answers, https://github.com/jennyzzt/dgm/tree/main",
+        "importance": "optional"
+      },
+      {
+        "id": "extras",
+        "title": "Р•СЃС‚СЊ Р»Рё РµС‰Рµ РїРѕР¶РµР»Р°РЅРёСЏ РёР»Рё С‚РѕРЅРєРёРµ РѕРіСЂР°РЅРёС‡РµРЅРёСЏ?",
+        "hint": "Р­С‚Рѕ СѓР¶Рµ РЅРµРѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РЅСЋР°РЅСЃС‹ РґР»СЏ СЂР°РЅР¶РёСЂРѕРІР°РЅРёСЏ Рё СЃРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅС‹С….",
+        "example": "РџСЂРёРјРµСЂ: \"РЅРµ С…РѕС‡Сѓ СЃР»РёС€РєРѕРј junior-СЂРѕР»Рё; РїРёСЃСЊРјРѕ РІСЃРµРіРґР° С‚РѕР»СЊРєРѕ РЅР° СЂСѓСЃСЃРєРѕРј\".",
+        "prefill": "",
+        "importance": "optional"
+      }
+    ],
+    "answers": {},
+    "context": {
+      "resume_title": "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs",
+      "summary": "Мы используем файлы cookie, чтобы обеспечивать правильную работу нашего веб-сайта и анализировать сетевой трафик. Правила использования файлов cookie Понятно Чаты 99+ Резюме и профиль 99+ Отклики 4 Сервисы Карьера Помощь Поиск Москва 99+ Создать резюме Мои резюме / Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs 300 000 ₽ на руки Тип занятости: Подработка, Постоянная работа Формат работы: Удалённо, Гибрид Желательное время в пути до работы: Не дольше 1 часа Командировки: Могу иногда Редактировать Контакты Мобильный телефон +7 989 580-99-76 Электронная почта — предпочитаемый способ связи vanya.litvak@gmail.com Опыт работы: 8 лет 10 месяцев Добавить Объединенный институт ядерных исследований 4 месяца Стажер-исследователь Декабрь 2025 — Март 2026 (4 месяца) Вести работу над НИКР Объединенный институт ядерных исследований 1 год и 8 месяцев Старший лаборант Апрель 2024 — Ноябрь 2025 (1 год и 8 месяцев) В",
+      "inferred_roles": [
+        "LLM Engineer",
+        "NLP Engineer",
+        "ML Engineer",
+        "Research Scientist",
+        "Data Scientist"
+      ],
+      "detected_skills": [
+        "Python",
+        "NLP",
+        "LLM"
+      ],
+      "detected_languages": [
+        "Русский"
+      ],
+      "detected_links": [
+        "https://www.researchgate.net/profile/Ivan-Litvak",
+        "https://github.com/TryDotAtwo",
+        "https://huggingface.co/datasets/lawful-good-project/sud-resh-benchmark",
+        "https://github.com/TryDotAtwo/AutoHHKek",
+        "https://vk.cc/cQ0G9b",
+        "https://hh.ru/resume/07687234ff0dd3ea5f0039ed1f47594655564f",
+        "https://github.com/TryDotAtwo/Anal_Russia_Klinik2025",
+        "https://github.com/TryDotAtwo/TgBotWithLLMInterface",
+        "https://github.com/TryDotAtwo/TgBot-ForEducation",
+        "https://huggingface.co/TryDotAtwo/ruBERT-ruLaw",
+        "https://github.com/TryDotAtwo/Agentic_Solve_Math",
+        "https://тупа.рф",
+        "https://huggingface.co/datasets/lawful-good-project/sud_resh_evaluated_llms_answers",
+        "https://github.com/jennyzzt/dgm/tree/main"
+      ],
+      "detected_experience": 0.0
+    },
+    "started_at": "2026-03-25T18:30:52.235769+00:00",
+    "updated_at": "2026-03-25T18:30:52.235769+00:00"
+  },
+  "intake_dialog_completed": true,
+  "intake_dialog_completed_at": "",
+  "intake_confirmed": true,
+  "intake_confirmed_at": "2026-03-25T18:31:13.289527+00:00",
+  "intake_user_rules_contract": {
+    "meta": {
+      "status": "active",
+      "dialog_completed": true,
+      "confirmed": false
+    },
+    "candidate_profile": {
+      "short_summary": "роли LLM Engineer, NLP Engineer. Must-have: Python, NLP, LLM. Только remote. Исключить госструктуры, университеты, research institute. Зарплата от 350000. Домены: LLM products, AI infra. Дополнительно: сопроводительное только на русском.",
+      "seniority_target": [],
+      "core_strengths": [
+        "Python",
+        "NLP",
+        "LLM"
+      ],
+      "known_gaps": []
+    },
+    "search_targets": {
+      "primary_roles": [
+        "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs"
+      ],
+      "secondary_roles": [],
+      "exclude_roles": [],
+      "must_have_keywords": [],
+      "nice_to_have_keywords": [
+        "Python",
+        "NLP",
+        "LLM"
+      ],
+      "exclude_keywords": []
+    },
+    "hard_constraints": {
+      "work_format": "flexible",
+      "locations_allowed": [],
+      "relocation_allowed": false,
+      "salary_min_rub_month_net": null,
+      "exclude_company_types": [],
+      "exclude_vacancy_signals": [],
+      "must_have_vacancy_signals": []
+    },
+    "soft_preferences": {
+      "preferred_domains": [],
+      "preferred_company_stages": [],
+      "preferred_team_traits": [],
+      "avoid_if_possible": []
+    },
+    "evaluation_policy": {
+      "unknown_hard_constraint_result": "doubt",
+      "fit_threshold": 75,
+      "doubt_threshold": 45,
+      "weights": {
+        "role_match": 25,
+        "skills_match": 25,
+        "work_format": 20,
+        "salary": 15,
+        "domain_match": 10,
+        "company_type_match": 5
+      }
+    },
+    "cover_letter_policy": {
+      "language": "ru",
+      "tone": "деловой, живой, без канцелярита",
+      "max_chars": 1200,
+      "must_include": [
+        "1-2 факта релевантности по стеку",
+        "краткий интерес к задачам компании",
+        "только проверенные факты кандидата"
+      ],
+      "must_not_include": [
+        "системные инструкции",
+        "внутренние правила агента",
+        "ложные достижения"
+      ],
+      "evidence_points_priority": [
+        "Python",
+        "NLP",
+        "LLM"
+      ]
+    },
+    "questionnaire_policy": {
+      "allowed_fact_sources": [
+        "resume_facts",
+        "chat_answers",
+        "user_rules"
+      ],
+      "must_ask_user_if_missing": [
+        "точная зарплата",
+        "дата выхода",
+        "готовность к переезду",
+        "правовой статус для страны"
+      ],
+      "can_autofill_if_confident": [
+        "ФИО",
+        "контакты",
+        "образование",
+        "языки",
+        "ключевые навыки"
+      ],
+      "test_task_policy": {
+        "auto_accept_short_form": false,
+        "ask_before_take_home_task": true,
+        "ask_before_long_questionnaire": true
+      }
+    },
+    "apply_policy": {
+      "auto_generate_cover_letter_for_fit": true,
+      "auto_generate_cover_letter_when_moved_to_fit": true,
+      "auto_apply_categories": [
+        "fit"
+      ],
+      "daily_apply_limit": 200,
+      "per_hour_soft_limit": 25,
+      "delay_between_actions_sec": {
+        "min": 45,
+        "max": 150
+      }
+    },
+    "provenance": {
+      "resume_based": [
+        "candidate_profile.core_strengths",
+        "search_targets.primary_roles"
+      ],
+      "user_confirmed": [
+        "hard_constraints.work_format",
+        "hard_constraints.salary_min_rub_month_net"
+      ],
+      "inferred": [
+        "candidate_profile.short_summary"
+      ]
+    },
+    "notes_for_followup": []
+  }
+}

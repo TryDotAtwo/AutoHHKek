@@ -1,0 +1,21 @@
+{
+  "last_auto_bootstrap_at": "2026-03-24T20:45:06.837755+00:00",
+  "last_auto_bootstrap_status": "completed",
+  "last_hh_login_at": "2026-03-24T20:47:58.490027+00:00",
+  "last_rules_rebuilt_at": "2026-03-25T09:56:42.142758+00:00",
+  "last_auto_bootstrap_message": "Правила обновлены. Для откликов нужно выбрать резюме.",
+  "last_auto_bootstrap_finished_at": "2026-03-24T20:47:47.909160+00:00",
+  "last_resume_catalog_at": "2026-03-25T08:46:45.118597+00:00",
+  "last_resume_catalog_status": "completed",
+  "last_resume_catalog_count": 1,
+  "last_analysis_at": "2026-03-25T09:49:21.245936+00:00",
+  "last_resume_draft_at": "2026-03-25T09:56:42.148120+00:00",
+  "last_apply_plan_at": "2026-03-25T10:15:44.207978+00:00",
+  "last_apply_submit_at": "2026-03-25T10:15:55.896152+00:00",
+  "last_resume_sync_at": "2026-03-25T09:56:42.120065+00:00",
+  "last_resume_sync_status": "updated",
+  "last_resume_sync_resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f",
+  "last_resume_sync_title": "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs",
+  "last_resume_sync_change_count": 5,
+  "last_resume_sync_message": "Resume sync updated profile fields."
+}

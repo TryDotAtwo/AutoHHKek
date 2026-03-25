@@ -1,0 +1,20 @@
+{
+  "run_id": "analyze-3f9a7e8bac",
+  "mode": "analyze",
+  "status": "completed",
+  "started_at": "2026-03-25T13:40:06.106232+00:00",
+  "finished_at": "2026-03-25T13:40:06.106232+00:00",
+  "processed": 0,
+  "counts": {
+    "fit": 0,
+    "doubt": 0,
+    "no_fit": 0
+  },
+  "notes": [
+    "Режим анализа не делает отклики.",
+    "Перед анализом правила и hh.ru фильтры пересобраны из текущего профиля.",
+    "Источник вакансий: Не удалось обновить вакансии с hh.ru: 'ElementHandle' object has no attribute 'locator'",
+    "LLM backend: requested openrouter, effective openrouter.",
+    "Для каждой вакансии сохранены категория и причины."
+  ]
+}

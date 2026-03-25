@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AutoHHKek</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+  </head>
+  <body>
+    <div class="page-glow page-glow--top"></div>
+    <div class="page-glow page-glow--bottom"></div>
+
+    <div class="app-shell">
+      <main class="dashboard-shell">
+        <section class="workspace">
+          <section class="workspace-head panel">
+            <div class="workspace-head-main">
+              <span class="panel-kicker">hh.ru dashboard</span>
+              <h1 id="hero-next-action">Ожидание</h1>
+              <p id="hero-summary" class="workspace-summary">После загрузки появится текущее состояние поиска.</p>
+            </div>
+            <div class="workspace-head-meta">
+              <div class="note">
+                <strong id="hero-runtime">Загрузка</strong>
+                <p id="hero-next-reason" class="muted">Режим и выбранное резюме появятся после первой синхронизации.</p>
+              </div>
+              <div class="note">
+                <strong>Обновлено</strong>
+                <p id="generated-at" class="muted">Ожидание данных.</p>
+              </div>
+            </div>
+          </section>
+          <section id="status-strip" class="status-strip"></section>
+          <nav id="tabbar" class="tabbar" aria-label="Разделы дашборда"></nav>
+          <section id="agent-view" class="view is-active"></section>
+          <section id="vacancies-view" class="view"></section>
+          <section id="vacancy-view" class="view"></section>
+          <section id="activity-view" class="view"></section>
+        </section>
+        <div id="layout-resizer" class="layout-resizer" aria-hidden="true"></div>
+        <aside id="chat-sidebar" class="sidebar"></aside>
+      </main>
+    </div>
+
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

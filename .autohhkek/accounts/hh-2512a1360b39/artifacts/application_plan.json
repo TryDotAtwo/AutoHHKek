@@ -1,0 +1,308 @@
+{
+  "vacancy": {
+    "vacancy_id": "131551654",
+    "title": "Middle CV Research Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "3 500 – 4 500 $",
+    "salary_from": 3500,
+    "salary_to": 4500,
+    "is_remote": true,
+    "url": "https://hh.ru/vacancy/131551654?hhtmFrom=vacancy_search_list",
+    "summary": "Сейчас смотрят 28 человек   за месяц, до вычета налогов Опыт 1-3 года Можно удалённо DiagnoCat Москва Research and develop state-of-the-art models for 2D/3D segmentation, object detection, classification, landmarking, and object... 2+ years of experience in Computer Vision with a proven track record of building and deploying commercial solutions.",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  "assessment": {
+    "vacancy_id": "131551654",
+    "category": "no_fit",
+    "subcategory": "experience_mismatch",
+    "score": 28.0,
+    "explanation": "Опыт требования 1–3 года не удовлетворяется кандидатом (0 лет).",
+    "reasons": [
+      {
+        "code": "experience_mismatch",
+        "label": "Опыт",
+        "group": "negative",
+        "detail": "Требуется 1–3 года опыта в CV; у кандидата 0",
+        "weight": 60.0,
+        "subcategory": "experience"
+      },
+      {
+        "code": "remote_availability",
+        "label": "Удалёнка доступна",
+        "group": "positive",
+        "detail": "Вакансия разрешает удалёнку",
+        "weight": 20.0,
+        "subcategory": "work_style"
+      },
+      {
+        "code": "domain_mismatch",
+        "label": "Домен/направление",
+        "group": "neutral",
+        "detail": "Фокус вакансии — CV (2D/3D сегментация, DET). Предпочтения кандидата — LLM/NLP/ML",
+        "weight": 15.0,
+        "subcategory": "domain"
+      },
+      {
+        "code": "salary",
+        "label": "Зарплата",
+        "group": "positive",
+        "detail": "Диапазон 3.5–4.5k USD соответствует рынку",
+        "weight": 5.0,
+        "subcategory": "compensation"
+      },
+      {
+        "code": "location",
+        "label": "Локация/формат",
+        "group": "positive",
+        "detail": "Remote указано",
+        "weight": 5.0,
+        "subcategory": "work_style"
+      }
+    ],
+    "recommended_action": "Искать вакансии с порогом опыта 0–1 год или стажировки/интернатуры в CV/ML; предпочтительно удаленка.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Удалёнка поддерживается; вакансия ориентирована на CV/segmentation, что частично соответствует интересам, но строгий порог опыта мешает."
+  },
+  "runtime": {
+    "backend": "playwright",
+    "headless": false,
+    "supports": [
+      "vacancy-analysis",
+      "resume-draft",
+      "screening-plan",
+      "cover-letter-plan",
+      "dashboard-observability",
+      "script-first-ui-automation",
+      "repair-worker",
+      "openrouter-vacancy-review",
+      "openrouter-filter-planning",
+      "g4f-vacancy-review",
+      "g4f-filter-planning",
+      "playwright-mcp-repair"
+    ],
+    "script_actions": [
+      "choose_resume",
+      "click_apply_button",
+      "open_search_page",
+      "set_area_filter",
+      "set_remote_filter",
+      "set_salary_min",
+      "set_search_text"
+    ],
+    "openai_available": false,
+    "openai_ready": false,
+    "openai_model": "gpt-5.4",
+    "openrouter_ready": true,
+    "openrouter_model": "openai/gpt-5-nano",
+    "selected_llm_backend": "openrouter",
+    "selected_llm_backend_ready": true,
+    "effective_backend": "openrouter",
+    "effective_backend_ready": true,
+    "fallback_applied": false,
+    "llm_backends": {
+      "openai": {
+        "ready": false,
+        "model": "gpt-5.4",
+        "supports_mcp_repair": true
+      },
+      "openrouter": {
+        "ready": true,
+        "model": "openai/gpt-5-nano",
+        "base_url": "https://openrouter.ai/api/v1",
+        "supports_mcp_repair": true
+      },
+      "g4f": {
+        "ready": true,
+        "requested_model": "gpt-4o-mini",
+        "requested_provider": "OpenaiChat",
+        "model": "gpt-4o-mini",
+        "provider": "OpenaiChat",
+        "resolved_model": "gpt-4o-mini",
+        "resolved_provider": "OpenaiChat",
+        "resolution": "requested_model",
+        "targets": [
+          {
+            "model": "gpt-4o-mini",
+            "provider": "OpenaiChat",
+            "base_provider": "OpenAI",
+            "working": true,
+            "needs_auth": false,
+            "label": "gpt-4o-mini via OpenaiChat"
+          },
+          {
+            "model": "gpt-4o-mini",
+            "provider": "Chatai",
+            "base_provider": "OpenAI",
+            "working": true,
+            "needs_auth": false,
+            "label": "gpt-4o-mini via Chatai"
+          },
+          {
+            "model": "gpt-4o",
+            "provider": "OpenaiChat",
+            "base_provider": "OpenAI",
+            "working": true,
+            "needs_auth": false,
+            "label": "gpt-4o via OpenaiChat"
+          },
+          {
+            "model": "gemini-2.5-flash",
+            "provider": "GeminiPro",
+            "base_provider": "Google",
+            "working": true,
+            "needs_auth": false,
+            "label": "gemini-2.5-flash via GeminiPro"
+          }
+        ],
+        "supports_mcp_repair": false
+      }
+    },
+    "playwright_mcp_ready": true,
+    "playwright_mcp_command": "C:\\Program Files\\nodejs\\npx.CMD",
+    "playwright_mcp_source": "configured",
+    "playwright_mcp": {
+      "command": "C:\\Program Files\\nodejs\\npx.CMD",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "encoding": "utf-8"
+    }
+  },
+  "backend_status": "Script-first DOM automation with OpenRouter review/planning and Playwright MCP repair fallback.",
+  "filter_plan": {
+    "search_text": "",
+    "query_params": {
+      "remote_work": "1"
+    },
+    "search_url": "https://hh.ru/search/vacancy?from=resumelist&search_field=name&search_field=company_name&search_field=description&enable_snippets=true&forceFiltersSaving=true&resume=07687234ff0dd3ea5f0039ed1f47594655564f&work_format=REMOTE",
+    "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f",
+    "ui_actions": [
+      {
+        "action": "open_search_page",
+        "success": true,
+        "strategy": "script",
+        "details": {
+          "url": "https://hh.ru/search/vacancy",
+          "method": "goto"
+        },
+        "error": "",
+        "fallback": null
+      },
+      {
+        "action": "set_remote_filter",
+        "success": true,
+        "strategy": "script",
+        "details": {
+          "selector": "[data-qa='advanced-search__remote-work']",
+          "value": true,
+          "method": "check"
+        },
+        "error": "",
+        "fallback": null
+      }
+    ],
+    "residual_rules": [
+      "User note: Роли: LLM Engineer, NLP Engineer, ML Engineer, Data Scientist, Research Scientist.\nНе хочу: госуха, университеты, институты, research institute, правительство, офлайн и гибрид.\nОбязательное: удаленка, сильный ML/NLP/LLM стек, адекватный исследовательский или инженерный контекст.\nЖелательное: Python, NLP, LLM, Transformers, research/engineering mix.\nЛокация и формат: remote only, Россия или международные удаленные команды, Москва не обязательна.\nЗарплата: без жесткой нижней границы, но явно слабые по уровню вакансии нежелательны.\nИсключения по компаниям и доменам: государственные структуры, вузы, институты, окологос проекты.\nСтоп-слова: университет, институт, государствен, research institute, правительство.\nВес критериев: удаленка и отсутствие гос/вуз тематики - жестко; стек и роль - очень важно; зарплата и домен обсуждаемы.\nДополнительный контекст: сопроводительное всегда только на русском языке, без системных инструкций и без внутреннего мусора.",
+      "Exclude government/academic domains: stop words include университет, институт, государствен, research institute, правительство.",
+      "Remote-only requirement: ensure remote and exclude offline/hybrid.",
+      "Geography: Russland or international remote teams; Moscow not mandatory.",
+      "Stack/roles emphasis: strong ML/NLP/LLM stack; target roles LLM Engineer, NLP Engineer, ML Engineer, Data Scientist, Research Scientist.",
+      "Salary: no hard lower bound; avoid clearly junior/entry-level roles.",
+      "Language: cover letter should be Russian.",
+      "Search hint from planner: (LLM Engineer OR NLP Engineer OR ML Engineer OR Data Scientist OR Research Scientist) remote (Python OR NLP OR LLM OR Transformers) -университ* -институт* -research institute -государствен* -правительство -госструктуры -offline -hybrid"
+    ],
+    "strategy": "script_first_with_openrouter_planning",
+    "planner_backend": "openrouter_agent",
+    "planning_notes": [
+      "User seeks remote-only ML/NLP/LLM roles in Russia or international remote teams, excluding govern­ment/academic domains. The search_text targets the specified roles and stack while excluding stop-words. Residual rules capture constraints not easily encoded in the search query (e.g., strict exclusions, language, and salary preferences).",
+      "Resume-first search enabled: hh resume drives the broad candidate pool; text narrowing stays in residual rules and local scoring."
+    ],
+    "llm_planner_status": "ok",
+    "llm_planner_error": "",
+    "llm_filter_intent": {
+      "search_text": "(LLM Engineer OR NLP Engineer OR ML Engineer OR Data Scientist OR Research Scientist) remote (Python OR NLP OR LLM OR Transformers) -университ* -институт* -research institute -государствен* -правительство -госструктуры -offline -hybrid",
+      "area_code": "",
+      "remote_only": true,
+      "salary_min": null,
+      "residual_rules": [
+        "Exclude government/academic domains: stop words include университет, институт, государствен, research institute, правительство.",
+        "Remote-only requirement: ensure remote and exclude offline/hybrid.",
+        "Geography: Russland or international remote teams; Moscow not mandatory.",
+        "Stack/roles emphasis: strong ML/NLP/LLM stack; target roles LLM Engineer, NLP Engineer, ML Engineer, Data Scientist, Research Scientist.",
+        "Salary: no hard lower bound; avoid clearly junior/entry-level roles.",
+        "Language: cover letter should be Russian."
+      ],
+      "rationale": "User seeks remote-only ML/NLP/LLM roles in Russia or international remote teams, excluding govern­ment/academic domains. The search_text targets the specified roles and stack while excluding stop-words. Residual rules capture constraints not easily encoded in the search query (e.g., strict exclusions, language, and salary preferences)."
+    }
+  },
+  "screening_plan": {
+    "platform": "hh",
+    "target_url": "https://hh.ru/vacancy/131551654?hhtmFrom=vacancy_search_list",
+    "questions": [],
+    "notes": [
+      "Явных сигналов теста не найдено, но анкету всё равно стоит ожидать."
+    ],
+    "requires_manual_review": false
+  },
+  "cover_letter_enabled": true,
+  "cover_letter_preview": "Здравствуйте! Меня заинтересовала вакансия Middle CV Research Engineer. У меня 0 лет опыта в направлении ML/AI, основной стек включает Python, ML, LLM. Опыт требования 1–3 года не удовлетворяется кандидатом (0 лет). Готов подробно обсудить наиболее релевантный для этой вакансии опыт и аккуратно пройти анкету или тест, если они предусмотрены.",
+  "stages": [
+    {
+      "stage": "analysis",
+      "title": "Vacancy analysis",
+      "status": "ready"
+    },
+    {
+      "stage": "resume",
+      "title": "Resume selection",
+      "status": "ready"
+    },
+    {
+      "stage": "screening",
+      "title": "Questionnaire or test",
+      "status": "ready"
+    },
+    {
+      "stage": "cover_letter",
+      "title": "Cover letter",
+      "status": "ready"
+    },
+    {
+      "stage": "submit",
+      "title": "Submit application",
+      "status": "pending"
+    },
+    {
+      "stage": "post_apply",
+      "title": "Post-apply hh chat or survey",
+      "status": "pending"
+    }
+  ],
+  "script_actions": [
+    {
+      "action": "click_apply_button",
+      "success": true,
+      "strategy": "script",
+      "details": {
+        "selector_candidates": [
+          "a[data-qa='vacancy-response-link-top']",
+          "button[data-qa='vacancy-response-button']",
+          "button:has-text('Откликнуться')"
+        ],
+        "method": "click",
+        "vacancy_id": "131551654"
+      },
+      "error": "",
+      "fallback": null
+    }
+  ]
+}

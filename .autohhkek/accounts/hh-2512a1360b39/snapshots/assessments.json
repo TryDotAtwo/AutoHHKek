@@ -1,0 +1,243 @@
+[
+  {
+    "vacancy_id": "131551654",
+    "category": "no_fit",
+    "subcategory": "experience_mismatch",
+    "score": 28.0,
+    "explanation": "Опыт требования 1–3 года не удовлетворяется кандидатом (0 лет).",
+    "reasons": [
+      {
+        "code": "experience_mismatch",
+        "label": "Опыт",
+        "group": "negative",
+        "detail": "Требуется 1–3 года опыта в CV; у кандидата 0",
+        "weight": 60.0,
+        "subcategory": "experience"
+      },
+      {
+        "code": "remote_availability",
+        "label": "Удалёнка доступна",
+        "group": "positive",
+        "detail": "Вакансия разрешает удалёнку",
+        "weight": 20.0,
+        "subcategory": "work_style"
+      },
+      {
+        "code": "domain_mismatch",
+        "label": "Домен/направление",
+        "group": "neutral",
+        "detail": "Фокус вакансии — CV (2D/3D сегментация, DET). Предпочтения кандидата — LLM/NLP/ML",
+        "weight": 15.0,
+        "subcategory": "domain"
+      },
+      {
+        "code": "salary",
+        "label": "Зарплата",
+        "group": "positive",
+        "detail": "Диапазон 3.5–4.5k USD соответствует рынку",
+        "weight": 5.0,
+        "subcategory": "compensation"
+      },
+      {
+        "code": "location",
+        "label": "Локация/формат",
+        "group": "positive",
+        "detail": "Remote указано",
+        "weight": 5.0,
+        "subcategory": "work_style"
+      }
+    ],
+    "recommended_action": "Искать вакансии с порогом опыта 0–1 год или стажировки/интернатуры в CV/ML; предпочтительно удаленка.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Удалёнка поддерживается; вакансия ориентирована на CV/segmentation, что частично соответствует интересам, но строгий порог опыта мешает."
+  },
+  {
+    "vacancy_id": "131503916",
+    "category": "doubt",
+    "subcategory": "alignment_and_requirements",
+    "score": 45.0,
+    "explanation": "Часть совпадает: удалёнка и ML-опыт; основной стек не соответствует интересующему кандидата LLM/NLP/Transformers.",
+    "reasons": [
+      {
+        "code": "remote_ok",
+        "label": "Удалёнка доступна",
+        "group": "positive",
+        "detail": "Вакансия поддерживает удалённую работу",
+        "weight": 25.0,
+        "subcategory": "work_arrangement"
+      },
+      {
+        "code": "stack_mismatch",
+        "label": "Стек не соответствует LLM/NLP",
+        "group": "negative",
+        "detail": "Нет упоминания NLP/LLM/Transformers, фокус на сигнальной обработке",
+        "weight": 40.0,
+        "subcategory": "technology"
+      },
+      {
+        "code": "domain_mismatch",
+        "label": "Домен проекта не соответствует интересам",
+        "group": "neutral",
+        "detail": "Работа с PPG и медданными, без явной NLP/LLM-орентированности",
+        "weight": 15.0,
+        "subcategory": "domain"
+      },
+      {
+        "code": "part_time_risk",
+        "label": "Частичная занятость",
+        "group": "neutral",
+        "detail": "Part-time может не соответствовать ожиданиям по уровню подготовки",
+        "weight": 10.0,
+        "subcategory": "work_schedule"
+      },
+      {
+        "code": "experience_fit",
+        "label": "Опыт работы",
+        "group": "neutral",
+        "detail": "Указан опыт ~1 год, что ограничивает глубину и амбициозность роли",
+        "weight": 10.0,
+        "subcategory": "experience"
+      }
+    ],
+    "recommended_action": "Уточнить стек (NLP/LLM/Transformers) и возможность перехода к NLP/LLM-ролям; рассмотреть вакансии с явной экспертизой в NLP/LLM.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Имеется remote, но доменная направленность — сигнальные данные/медицинские сигналы; слабая привязка к NLP/LLM."
+  },
+  {
+    "vacancy_id": "131550329",
+    "category": "doubt",
+    "subcategory": "llm_review",
+    "score": 40.0,
+    "explanation": "Опыт, требуемый вакансией (5+ лет) не подтверждается; есть гибридные условия, не полностью соответствующие удалёнке; стек и интересы в целом совпадают.",
+    "reasons": [
+      {
+        "code": "exp_mismatch",
+        "label": "Не соответствует требованию по опыту",
+        "group": "negative",
+        "detail": "Требуется 5+ лет ML; по анамнезису у кандидата 0 лет",
+        "weight": 85.0,
+        "subcategory": "experience"
+      },
+      {
+        "code": "remote_hybrid",
+        "label": "Наличие офиса/гибридности против удалённой работе",
+        "group": "negative",
+        "detail": "Вакансия допускает присутствие в офисе; кандидат — remote-only",
+        "weight": 50.0,
+        "subcategory": "work_format"
+      },
+      {
+        "code": "alignment",
+        "label": "Соответствие интересам и стеку ML/NLP",
+        "group": "positive",
+        "detail": "Роли соответствуют интересам кандидата (ML/NLP/LLM)",
+        "weight": 25.0,
+        "subcategory": "fit"
+      },
+      {
+        "code": "salary_ambiguity",
+        "label": "Неопределённость по оплате",
+        "group": "neutral",
+        "detail": "salary 3-6 без контекста; неясно оклад и бенефиты",
+        "weight": 25.0,
+        "subcategory": "salary"
+      }
+    ],
+    "recommended_action": "Уточнить возможность полной удалённой работы и соответствие требуемому опыту; рассмотреть кандидатуры с подтверждённым опытом >=5 лет.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Удалёнка запрашивается как приоритет; наличие офисного присутствия и минимальный порог опыта создают риск соответствия."
+  },
+  {
+    "vacancy_id": "131483619",
+    "category": "doubt",
+    "subcategory": "ML/Finance/Remote",
+    "score": 63.0,
+    "explanation": "Удалёнка есть; ML/Quant стек присутствует; но требуется опыт в финансах и неясна оплата.",
+    "reasons": [
+      {
+        "code": "remote_ok",
+        "label": "Удалённая работа доступна",
+        "group": "positive",
+        "detail": "is_remote = true; соответствует удалённому формату",
+        "weight": 25.0,
+        "subcategory": "work_setup"
+      },
+      {
+        "code": "ml_quant_focus",
+        "label": "Сильный ML/Quant стек",
+        "group": "neutral",
+        "detail": "Роль ML инженер/Quant Developer; ML фокус присутствует",
+        "weight": 20.0,
+        "subcategory": "tech_stack"
+      },
+      {
+        "code": "finance_domain_req",
+        "label": "Требуется опыт в финансах",
+        "group": "negative",
+        "detail": "Указан опыт в финансах; может не соответствовать профилю",
+        "weight": 15.0,
+        "subcategory": "domain"
+      },
+      {
+        "code": "salary_ambiguity",
+        "label": "Не ясна валюта/формат оплаты",
+        "group": "neutral",
+        "detail": "salary_text '3-6' без валюты/частоты",
+        "weight": 10.0,
+        "subcategory": "compensation"
+      },
+      {
+        "code": "location_params",
+        "label": "Москва как локация, удалёнка доступна",
+        "group": "neutral",
+        "detail": "Указана Москва, но присутствует удалёнка",
+        "weight": 8.0,
+        "subcategory": "location"
+      }
+    ],
+    "recommended_action": "Уточнить требования по финансам и условия оплаты; оценить возможность применения ML/LLM без опыта в финансах.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Удалёнка подходит; основной риск — финансовый домен и неопределённость зарплаты."
+  },
+  {
+    "vacancy_id": "131456067",
+    "category": "fit",
+    "subcategory": "Remote+Transformers ML Research",
+    "score": 88.0,
+    "explanation": "Удалёнка доступна; роль в ML/NLP/Transformers в исследовательском контексте соответствует предпочтениям.",
+    "reasons": [
+      {
+        "code": "remote_available",
+        "label": "Удалёнка доступна",
+        "group": "positive",
+        "detail": "Вакансия поддерживает удалённую работу; соответствует требованию кандидата к удалёнке.",
+        "weight": 40.0,
+        "subcategory": "Remote"
+      },
+      {
+        "code": "tech_fit",
+        "label": "Технический стек/роль",
+        "group": "positive",
+        "detail": "Работа с Transformers, ML/NLP, исследовательский контекст — совпадает с пожеланиями к стеку/роли.",
+        "weight": 40.0,
+        "subcategory": "Tech Fit"
+      },
+      {
+        "code": "info_missing",
+        "label": "Информация о компании/уровне",
+        "group": "neutral",
+        "detail": "Недостаточно информации о компании и требуемом уровне Senior/Middle.",
+        "weight": 20.0,
+        "subcategory": "Info"
+      }
+    ],
+    "recommended_action": "Подать отклик, упомянуть опыт с Transformers/LLM и удалённую работу.",
+    "ready_for_apply": true,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Проверено моделью openai/gpt-5-nano через OpenRouter."
+  }
+]

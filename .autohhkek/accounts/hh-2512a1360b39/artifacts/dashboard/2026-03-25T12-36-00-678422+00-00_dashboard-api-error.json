@@ -1,0 +1,8 @@
+{
+  "path": "/api/chat",
+  "error": "Import rules requires intake first.",
+  "body": {
+    "message": "подтверди правила",
+    "selected_vacancy_id": ""
+  }
+}

@@ -1,0 +1,2282 @@
+[
+  {
+    "vacancy_id": "3235779ec6aef3e1",
+    "title": "Data Scientist (RAG Systems) — Middle+ / Senior",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131510319?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist (RAG Systems) — Middle+ / Senior",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "9852d9ee3678dfe7",
+    "title": "Machine Learning Specialist (part-time)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131503916?hhtmFrom=vacancy_search_list",
+    "summary": "Machine Learning Specialist (part-time)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "9f32635f85c44cc8",
+    "title": "Эксперт по машинному обучению",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131531199?hhtmFrom=vacancy_search_list",
+    "summary": "Эксперт по машинному обучению",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "efddc0f59a7d87c3",
+    "title": "ML-инженер/ML Quant Developer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131483619?hhtmFrom=vacancy_search_list",
+    "summary": "ML-инженер/ML Quant Developer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "6b26d126ceee2be1",
+    "title": "Data Scientist (NLP / LLM)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131458592?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist (NLP / LLM)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "5b2e7ce3eb125b4d",
+    "title": "Программист cv",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131495825?hhtmFrom=vacancy_search_list",
+    "summary": "Программист cv",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "ee538846dad74ae0",
+    "title": "Инженер-исследователь (разработчик)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131495439?hhtmFrom=vacancy_search_list",
+    "summary": "Инженер-исследователь (разработчик)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "8b86d1d9a93057ad",
+    "title": "ML Engineer (Medical Imaging)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131040143?hhtmFrom=vacancy_search_list",
+    "summary": "ML Engineer (Medical Imaging)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "df52e6c1cff2f8c1",
+    "title": "ML / DS разработчик (Цифровой ассистент)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131470066?hhtmFrom=vacancy_search_list",
+    "summary": "ML / DS разработчик (Цифровой ассистент)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "be9c97214179fca8",
+    "title": "AI specialist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131526572?hhtmFrom=vacancy_search_list",
+    "summary": "AI specialist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "38f06ec511963a88",
+    "title": "Data Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131485364?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "fbca9e9603acb67b",
+    "title": "AI ML Research Scientist - Transformers (Senior / Middle, AI RnD команда)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131456067?hhtmFrom=vacancy_search_list",
+    "summary": "AI ML Research Scientist - Transformers (Senior / Middle, AI RnD команда)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "90ed0a31e1528209",
+    "title": "Data Scientist в команду Anti-Fraud",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131463157?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist в команду Anti-Fraud",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "c5878a206afde214",
+    "title": "Data Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131318710?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "c376506b511e4d56",
+    "title": "Специалист Machine learning (3D-алгоритмы)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131203306?hhtmFrom=vacancy_search_list",
+    "summary": "Специалист Machine learning (3D-алгоритмы)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "2e6dd8cf3b5fd950",
+    "title": "Quant Analyst / Quantitative Researcher",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131467690?hhtmFrom=vacancy_search_list",
+    "summary": "Quant Analyst / Quantitative Researcher",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "7d285c295bf9f342",
+    "title": "Аналитик-исследователь/ Data Scientist в команду нейросетевой оптимизации",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/130768943?hhtmFrom=vacancy_search_list",
+    "summary": "Аналитик-исследователь/ Data Scientist в команду нейросетевой оптимизации",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "9bff3bd55eff8b71",
+    "title": "Junior Data Scientist (LLM / AI Agents)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131485238?hhtmFrom=vacancy_search_list",
+    "summary": "Junior Data Scientist (LLM / AI Agents)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "5fd04fc56a36478a",
+    "title": "ML-инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131445158?hhtmFrom=vacancy_search_list",
+    "summary": "ML-инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "6f5d32aec76024f5",
+    "title": "Data Scientist в Сетку",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131478283?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist в Сетку",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "7b58418cdb20179d",
+    "title": "Computer Vision Researcher (Junior+)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131143095?hhtmFrom=vacancy_search_list",
+    "summary": "Computer Vision Researcher (Junior+)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "36b92fff29fffa78",
+    "title": "NLP Engineer (ML-Engineer) в проект \"Чат-бот\"",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131002324?hhtmFrom=vacancy_search_list",
+    "summary": "NLP Engineer (ML-Engineer) в проект \"Чат-бот\"",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "1958b510c9b6a99f",
+    "title": "CV Engineer - Team Lead (Инженер машинного обучения/Компьютерного зрения)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131519069?hhtmFrom=vacancy_search_list",
+    "summary": "CV Engineer - Team Lead (Инженер машинного обучения/Компьютерного зрения)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "995faeebe188ece1",
+    "title": "Data Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131516166?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "ec76f85bf1ef004d",
+    "title": "AI-developer (senior)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131534684?hhtmFrom=vacancy_search_list",
+    "summary": "AI-developer (senior)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "e80572231a607744",
+    "title": "ML/ RL программист",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131461417?hhtmFrom=vacancy_search_list",
+    "summary": "ML/ RL программист",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "1bdcbc4de9dfc9a0",
+    "title": "Python-разработчик",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131533593?hhtmFrom=vacancy_search_list",
+    "summary": "Python-разработчик",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "2e98a356cbab6c40",
+    "title": "ML Engineer (Middle+/Senior)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/130963149?hhtmFrom=vacancy_search_list",
+    "summary": "ML Engineer (Middle+/Senior)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "e1a1e40e3f1b7d14",
+    "title": "ML-инженер (Junior+ / Middle )",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131503629?hhtmFrom=vacancy_search_list",
+    "summary": "ML-инженер (Junior+ / Middle )",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "3f8c8784f65c68c2",
+    "title": "Data Scientist (Аналитик данных)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/130685144?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist (Аналитик данных)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "55292666e9762bea",
+    "title": "ML-аналитик в Яндекс Образование",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131504681?hhtmFrom=vacancy_search_list",
+    "summary": "ML-аналитик в Яндекс Образование",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "2ae8eb720c309dc0",
+    "title": "AI ML Research Scientist - Anomaly Detection and Uncertainty Estimation (Senior, AI RnD команда)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131456231?hhtmFrom=vacancy_search_list",
+    "summary": "AI ML Research Scientist - Anomaly Detection and Uncertainty Estimation (Senior, AI RnD команда)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "6de5cdcc86e212e5",
+    "title": "LLM-специалист / AI Engineer (LLM, Agents, RAG)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131418895?hhtmFrom=vacancy_search_list",
+    "summary": "LLM-специалист / AI Engineer (LLM, Agents, RAG)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "3a408360468002ed",
+    "title": "Специалист по компьютерному зрению (CV) / Video Analytics Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131502852?hhtmFrom=vacancy_search_list",
+    "summary": "Специалист по компьютерному зрению (CV) / Video Analytics Engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "e7a034f3f901a50f",
+    "title": "Middle/Senior ML Engineer (Trading)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131518157?hhtmFrom=vacancy_search_list",
+    "summary": "Middle/Senior ML Engineer (Trading)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "de4a78351c5c5c8f",
+    "title": "AI инженер RnD",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131307537?hhtmFrom=vacancy_search_list",
+    "summary": "AI инженер RnD",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "e4f7071ecacbeb0e",
+    "title": "Научный сотрудник",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/130707726?hhtmFrom=vacancy_search_list",
+    "summary": "Научный сотрудник",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "d45ae6689b45115f",
+    "title": "Senior Data Scientist (нейронные сети) / Deep Learning engineer (классик NLP)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131377331?hhtmFrom=vacancy_search_list",
+    "summary": "Senior Data Scientist (нейронные сети) / Deep Learning engineer (классик NLP)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "f7d89d5e5e45e0b8",
+    "title": "Middle ML Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129995579?hhtmFrom=vacancy_search_list",
+    "summary": "Middle ML Engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "7196815eb517b5c1",
+    "title": "ML-аналитик (Kandinsky)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131502123?hhtmFrom=vacancy_search_list",
+    "summary": "ML-аналитик (Kandinsky)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "4acf414a9434068b",
+    "title": "Data Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131469992?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "4228aadbaf725699",
+    "title": "Старший ML разработчик, Ozon Fresh",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131481230?hhtmFrom=vacancy_search_list",
+    "summary": "Старший ML разработчик, Ozon Fresh",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "69d898286fdcf9e8",
+    "title": "Senior Data Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131532062?hhtmFrom=vacancy_search_list",
+    "summary": "Senior Data Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "ddb644da6138cf5b",
+    "title": "Специалист по анализу защищенности / Пентестер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131535411?hhtmFrom=vacancy_search_list",
+    "summary": "Специалист по анализу защищенности / Пентестер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "b2268f75ca19031d",
+    "title": "Разработчик инфраструктуры RL-обучения LLM",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131497499?hhtmFrom=vacancy_search_list",
+    "summary": "Разработчик инфраструктуры RL-обучения LLM",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "d8bfe490fe7631b2",
+    "title": "ML-engineer (GigaChat Data)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131504121?hhtmFrom=vacancy_search_list",
+    "summary": "ML-engineer (GigaChat Data)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "bf976448e080b7a3",
+    "title": "Senior ML Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131331454?hhtmFrom=vacancy_search_list",
+    "summary": "Senior ML Engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "725d0f46c4d81863",
+    "title": "ML/AI Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131355799?hhtmFrom=vacancy_search_list",
+    "summary": "ML/AI Engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "c65243222a10a87c",
+    "title": "ML аналитик (трейдинг)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131532778?hhtmFrom=vacancy_search_list",
+    "summary": "ML аналитик (трейдинг)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "95071196efff80aa",
+    "title": "Инженер данных Data Engineer / ML-архитектор",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131177730?hhtmFrom=vacancy_search_list",
+    "summary": "Инженер данных Data Engineer / ML-архитектор",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "fca44b18dc8aac81",
+    "title": "RL+NLP Разработчик",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/128021316?hhtmFrom=vacancy_search_list",
+    "summary": "RL+NLP Разработчик",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "743001f6d93df89f",
+    "title": "Инженер машинного обучения / RecSys / Senior",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131456030?hhtmFrom=vacancy_search_list",
+    "summary": "Инженер машинного обучения / RecSys / Senior",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "8bff7ef98fbaee2e",
+    "title": "Machine Learning Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131392936?hhtmFrom=vacancy_search_list",
+    "summary": "Machine Learning Engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "4bcd887fbd2da44c",
+    "title": "Специалист по искусственному интеллекту (Middle Data Scientist)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129701968?hhtmFrom=vacancy_search_list",
+    "summary": "Специалист по искусственному интеллекту (Middle Data Scientist)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "4ca8e81b07911878",
+    "title": "Quantitative Researcher",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/126817489?hhtmFrom=vacancy_search_list",
+    "summary": "Quantitative Researcher",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "add6b6b2dbcb90aa",
+    "title": "Data Scientist(SberWorks)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131445422?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist(SberWorks)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "a146e67014a7103d",
+    "title": "Ведущий разработчик / AI Engineer (RAG / LLM)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/130566594?hhtmFrom=vacancy_search_list",
+    "summary": "Ведущий разработчик / AI Engineer (RAG / LLM)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "c3992f9a58508397",
+    "title": "Разработчик систем параллельных вычислений на GPU/NPU в Автономный транспорт",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131504537?hhtmFrom=vacancy_search_list",
+    "summary": "Разработчик систем параллельных вычислений на GPU/NPU в Автономный транспорт",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "10664ecf65e13f2c",
+    "title": "Senior ML-инженер в команду Поиска",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131464058?hhtmFrom=vacancy_search_list",
+    "summary": "Senior ML-инженер в команду Поиска",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "82df7067b05a50cb",
+    "title": "Middle+ Deep Learning Research Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129985613?hhtmFrom=vacancy_search_list",
+    "summary": "Middle+ Deep Learning Research Engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "d8730f36f30a1f1c",
+    "title": "Junior Data Analyst (стажёр исследователь данных)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131366271?hhtmFrom=vacancy_search_list",
+    "summary": "Junior Data Analyst (стажёр исследователь данных)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "9572fd8eb632a6d7",
+    "title": "Data Scientist / ML-инженер (алгоритмы и оптимизация)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129370191?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist / ML-инженер (алгоритмы и оптимизация)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "5307cb3e25b9d9d4",
+    "title": "Senior ML engineer (Kandinsky)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131534671?hhtmFrom=vacancy_search_list",
+    "summary": "Senior ML engineer (Kandinsky)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "84313ef3191ccdb2",
+    "title": "AI/ML инженер (Biotech)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131366580?hhtmFrom=vacancy_search_list",
+    "summary": "AI/ML инженер (Biotech)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "bd99b9064fb0a319",
+    "title": "Руководитель отдела ML-разработки",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131127284?hhtmFrom=vacancy_search_list",
+    "summary": "Руководитель отдела ML-разработки",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "617719fbde5e7c13",
+    "title": "Data Scientist (Предиктивная аналитика: инвестиционное направление)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129478666?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist (Предиктивная аналитика: инвестиционное направление)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "aca25ab35943909e",
+    "title": "Руководитель практики (DS\\наука о данных)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/130598455?hhtmFrom=vacancy_search_list",
+    "summary": "Руководитель практики (DS\\наука о данных)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "bbd0487caae2a548",
+    "title": "Ведущий специалист по данным и моделям / Senior Applied Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131505547?hhtmFrom=vacancy_search_list",
+    "summary": "Ведущий специалист по данным и моделям / Senior Applied Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "2cd2c8f80215eb49",
+    "title": "Senior ML-Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131481670?hhtmFrom=vacancy_search_list",
+    "summary": "Senior ML-Engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "69f20217e928565c",
+    "title": "Data scientist (NLP, LLM)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/128473664?hhtmFrom=vacancy_search_list",
+    "summary": "Data scientist (NLP, LLM)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "33412c87ad3020ea",
+    "title": "Computer Vision & Robotics Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131279533?hhtmFrom=vacancy_search_list",
+    "summary": "Computer Vision & Robotics Engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "17d151851068abd1",
+    "title": "ML Engineer / Data Scientist (видеоаналитика, CV)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131309705?hhtmFrom=vacancy_search_list",
+    "summary": "ML Engineer / Data Scientist (видеоаналитика, CV)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "5e57721da9299d5c",
+    "title": "Machine Learning Engineer/ Data scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131226379?hhtmFrom=vacancy_search_list",
+    "summary": "Machine Learning Engineer/ Data scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "73295375e1062a40",
+    "title": "Разработчик ИИ-агентов (AI Agent Developer)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131152666?hhtmFrom=vacancy_search_list",
+    "summary": "Разработчик ИИ-агентов (AI Agent Developer)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "4649e7c8fb4af437",
+    "title": "Middle+ / Senior ML-инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129723227?hhtmFrom=vacancy_search_list",
+    "summary": "Middle+ / Senior ML-инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "5aa8bf82721b4f26",
+    "title": "Data Scientist Middle",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131261019?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist Middle",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "3af5286a6b7e251f",
+    "title": "Machine Learning Engineer / ML-инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131292282?hhtmFrom=vacancy_search_list",
+    "summary": "Machine Learning Engineer / ML-инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "3184f2b932dc52c7",
+    "title": "AI-инженер / Архитектор мультиагентных систем",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131482207?hhtmFrom=vacancy_search_list",
+    "summary": "AI-инженер / Архитектор мультиагентных систем",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "0f07f1cd27d49fe1",
+    "title": "Исследователь/Research Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131217396?hhtmFrom=vacancy_search_list",
+    "summary": "Исследователь/Research Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "83c64dd1180aba4e",
+    "title": "Data Scientist (R&D NLP)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131468983?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist (R&D NLP)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "a080f3aaa39147af",
+    "title": "Физик-исследователь",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131325892?hhtmFrom=vacancy_search_list",
+    "summary": "Физик-исследователь",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "511e07ef0ccb73fd",
+    "title": "ML- инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131112087?hhtmFrom=vacancy_search_list",
+    "summary": "ML- инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "8d5a3fed93de2c35",
+    "title": "Middle/Middle+ ML-инженер (Офис)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131112288?hhtmFrom=vacancy_search_list",
+    "summary": "Middle/Middle+ ML-инженер (Офис)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "cf55bf2ffb39fe89",
+    "title": "Machine Learning Engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131183152?hhtmFrom=vacancy_search_list",
+    "summary": "Machine Learning Engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "30ae13910f754967",
+    "title": "ML-инженер (Направление клиентского сервиса)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131269133?hhtmFrom=vacancy_search_list",
+    "summary": "ML-инженер (Направление клиентского сервиса)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "d2198787f7a3d0a1",
+    "title": "Middle/Senior AI-engineer",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131419299?hhtmFrom=vacancy_search_list",
+    "summary": "Middle/Senior AI-engineer",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "3e0808ac11db1574",
+    "title": "Data Scientist (Middle)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131326756?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist (Middle)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "a7cb9b6b3af0884f",
+    "title": "MLOps инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131357005?hhtmFrom=vacancy_search_list",
+    "summary": "MLOps инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "46ebe9a8d05498a2",
+    "title": "Разработчик проектов по ИИ",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131202951?hhtmFrom=vacancy_search_list",
+    "summary": "Разработчик проектов по ИИ",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "4dad15c96de7ecec",
+    "title": "Deep learning researcher engineer, sequence models (команда B2C)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131503257?hhtmFrom=vacancy_search_list",
+    "summary": "Deep learning researcher engineer, sequence models (команда B2C)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "249ad2342db05d45",
+    "title": "ML/AI Engineer для AI стартапа",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131128427?hhtmFrom=vacancy_search_list",
+    "summary": "ML/AI Engineer для AI стартапа",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "fc44295eda921667",
+    "title": "Промпт-инженер/Prompt-инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131481768?hhtmFrom=vacancy_search_list",
+    "summary": "Промпт-инженер/Prompt-инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "bda52b88d0dcd2ad",
+    "title": "RL Разработчик",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/128020964?hhtmFrom=vacancy_search_list",
+    "summary": "RL Разработчик",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "d5b9f101231cd957",
+    "title": "ML-инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131329269?hhtmFrom=vacancy_search_list",
+    "summary": "ML-инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "c7c6d9a9aef65d4d",
+    "title": "Senior Data-Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131443675?hhtmFrom=vacancy_search_list",
+    "summary": "Senior Data-Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "ae0f64f347c32cd8",
+    "title": "Senior Data Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131532017?hhtmFrom=vacancy_search_list",
+    "summary": "Senior Data Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "6a06097ec4ff3eaf",
+    "title": "Middle/ Middle+ Data scientist (Центр модельных рисков розничного бизнеса)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131297853?hhtmFrom=vacancy_search_list",
+    "summary": "Middle/ Middle+ Data scientist (Центр модельных рисков розничного бизнеса)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "2c2c52d743123647",
+    "title": "ML аналитик (Рекомендации)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131513475?hhtmFrom=vacancy_search_list",
+    "summary": "ML аналитик (Рекомендации)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "f64f36d505b037f5",
+    "title": "Эксперт по искусственному интеллекту / Спикер по нейросетям (EdTech)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131116848?hhtmFrom=vacancy_search_list",
+    "summary": "Эксперт по искусственному интеллекту / Спикер по нейросетям (EdTech)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "79c54970172a61ae",
+    "title": "AI-инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129763603?hhtmFrom=vacancy_search_list",
+    "summary": "AI-инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "7cff3249dfad0b67",
+    "title": "ML-инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129606947?hhtmFrom=vacancy_search_list",
+    "summary": "ML-инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "f3bccfd112365408",
+    "title": "Ведущий разработчик машинного обучения",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131354753?hhtmFrom=vacancy_search_list",
+    "summary": "Ведущий разработчик машинного обучения",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "7cdd961a1313d109",
+    "title": "ML-инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131310448?hhtmFrom=vacancy_search_list",
+    "summary": "ML-инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "c91381c6596b9698",
+    "title": "Специалист по искусственному интеллекту",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/130560265?hhtmFrom=vacancy_search_list",
+    "summary": "Специалист по искусственному интеллекту",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "2c24b25b4f7c8355",
+    "title": "Ведущий ML-разработчик, Computer Vision",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/127549245?hhtmFrom=vacancy_search_list",
+    "summary": "Ведущий ML-разработчик, Computer Vision",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "730e8bd88b5452bc",
+    "title": "Data Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129886386?hhtmFrom=vacancy_search_list",
+    "summary": "Data Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "22b69bb59a873c7b",
+    "title": "ML-инженер",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131287909?hhtmFrom=vacancy_search_list",
+    "summary": "ML-инженер",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "1b21ebdc30c1588f",
+    "title": "Middle Data Science (классический ML)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131411540?hhtmFrom=vacancy_search_list",
+    "summary": "Middle Data Science (классический ML)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "0c56393648a50a8b",
+    "title": "Младший аналитик в группу анализа данных и алгоритмов",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/128947389?hhtmFrom=vacancy_search_list",
+    "summary": "Младший аналитик в группу анализа данных и алгоритмов",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "2183e70a3aa8cef2",
+    "title": "ML Engineer / Инженер по машинному обучению (рекомендательные системы)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131204647?hhtmFrom=vacancy_search_list",
+    "summary": "ML Engineer / Инженер по машинному обучению (рекомендательные системы)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "8c8b977c4bf15b80",
+    "title": "ML-Аналитик",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/130948958?hhtmFrom=vacancy_search_list",
+    "summary": "ML-Аналитик",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "ed07352f275148b1",
+    "title": "Эконометрист",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131496139?hhtmFrom=vacancy_search_list",
+    "summary": "Эконометрист",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "769cd877d156bc90",
+    "title": "Аналитик-исследователь (промышленность)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131519563?hhtmFrom=vacancy_search_list",
+    "summary": "Аналитик-исследователь (промышленность)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "8554ac2762b7a579",
+    "title": "Data scientist (Центр AI-маркетинга)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131427372?hhtmFrom=vacancy_search_list",
+    "summary": "Data scientist (Центр AI-маркетинга)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "cca81e10bbb53550",
+    "title": "AI Meditation Content Creator (Sleep Meditations)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131535269?hhtmFrom=vacancy_search_list",
+    "summary": "AI Meditation Content Creator (Sleep Meditations)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "4bc9296da3b07d2f",
+    "title": "NLP Engineer (GigaChat Pretrain)",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131167750?hhtmFrom=vacancy_search_list",
+    "summary": "NLP Engineer (GigaChat Pretrain)",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "bd18942955ca2473",
+    "title": "AI-специалист",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131187533?hhtmFrom=vacancy_search_list",
+    "summary": "AI-специалист",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "3c4eb9bb00d6c69c",
+    "title": "Аналитик IGaming",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131376430?hhtmFrom=vacancy_search_list",
+    "summary": "Аналитик IGaming",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "65c94e30e8511d34",
+    "title": "Специалист по машинному обучению и аналитике данных/Data Scientist",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/129887110?hhtmFrom=vacancy_search_list",
+    "summary": "Специалист по машинному обучению и аналитике данных/Data Scientist",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  {
+    "vacancy_id": "fe3d7bbef9d738fb",
+    "title": "Threat Detection Team Lead",
+    "company": "",
+    "location": "",
+    "employment": "",
+    "salary_text": "",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": false,
+    "url": "https://hh.ru/vacancy/131465586?hhtmFrom=vacancy_search_list",
+    "summary": "Threat Detection Team Lead",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "full_name": "",
+  "target_titles": [
+    "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs"
+  ],
+  "excluded_companies": [],
+  "excluded_keywords": [],
+  "required_skills": [],
+  "preferred_skills": [
+    "Python",
+    "NLP",
+    "LLM"
+  ],
+  "preferred_locations": [],
+  "forbidden_keywords": [],
+  "salary_min": null,
+  "remote_only": false,
+  "allow_relocation": false,
+  "cover_letter_mode": "adaptive",
+  "notes": "роли LLM Engineer, NLP Engineer. Must-have: Python, NLP, LLM. Только remote. Исключить госструктуры, университеты, research institute. Зарплата от 350000. Домены: LLM products, AI infra. Дополнительно: сопроводительное только на русском."
+}
