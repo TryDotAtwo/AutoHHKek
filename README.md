@@ -1,5 +1,9 @@
 # AutoHHKek
 
+#БОТ СПАМАНУЛ, ТУТ ВСЁ СЛОМАНО НАХУЙ ЖПТШКОЙ 5.4 ПОФИКШУ ЗАВТРА (26.05)
+
+
+
 Script-first hh.ru automation with agent review, long-term memory, vacancy analysis, intake, resume drafting, apply planning, and a local dashboard.
 
 The project entrypoint is the root file:
