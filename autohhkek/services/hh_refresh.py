@@ -138,7 +138,7 @@ class HHVacancyRefresher:
         async def _inner() -> tuple[list[Vacancy], dict[str, object]]:
             from playwright.async_api import async_playwright
 
-            from logic.vacancy_parser import search_vacancies
+            from logic.vacancy_parser import extract_vacancy_detail, search_vacancies
 
             state_payload = json.loads(self.state_path.read_text(encoding="utf-8"))
             cookies = list(state_payload.get("cookies") or [])
@@ -154,6 +154,22 @@ class HHVacancyRefresher:
                     await context.add_cookies(cookies)
                 page = await context.new_page()
                 raw_vacancies, total_count, parser_meta = await search_vacancies(page, resume_id, query_params=query_params)
+                detail_limit = min(len(raw_vacancies), limit if limit and limit > 0 else 120)
+                for item in raw_vacancies[:detail_limit]:
+                    vacancy_url = str(item.get("url") or "").strip()
+                    if not vacancy_url:
+                        continue
+                    try:
+                        await page.goto(vacancy_url, wait_until="domcontentloaded", timeout=60000)
+                        detail = await extract_vacancy_detail(page)
+                    except Exception:
+                        continue
+                    description = str(detail.get("description") or "").strip()
+                    if description:
+                        item["description"] = description
+                    skills = [str(skill).strip() for skill in list(detail.get("skills") or []) if str(skill).strip()]
+                    if skills:
+                        item["skills"] = skills
                 await context.close()
                 await browser.close()
             result = [self._to_vacancy(item, resume_id) for item in raw_vacancies]

@@ -9,7 +9,9 @@
   "excluded_keywords": [
     "Массовий подбор"
   ],
-  "required_skills": [],
+  "required_skills": [
+    "Оставь"
+  ],
   "preferred_skills": [
     "Python"
   ],

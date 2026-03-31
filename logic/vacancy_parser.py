@@ -262,6 +262,56 @@ async def extract_page_vacancies(page: Page) -> List[Dict[str, str]]:
     return vacancies
 
 
+async def extract_vacancy_detail(page: Page) -> Dict[str, object]:
+    payload = await page.evaluate(
+        """
+        () => {
+          const normalize = (value) => (value || "").replace(/\\s+/g, " ").trim();
+          const main = document.querySelector("main") || document.body;
+          const title = normalize(document.querySelector("h1")?.textContent || "");
+          const skills = Array.from(document.querySelectorAll("h2, h3"))
+            .filter((node) => normalize(node.textContent || "").toLowerCase() === "ключевые навыки")
+            .flatMap((heading) => {
+              const parent = heading.parentElement || heading;
+              return Array.from(parent.querySelectorAll("li, [class*='bloko-tag'], [data-qa*='skills-element']"))
+                .map((node) => normalize(node.textContent || ""))
+                .filter(Boolean);
+            });
+          let text = normalize(main.innerText || "");
+          const startMarkers = [title, "Мы —", "Основные задачи", "Преимущества работы с нами"].filter(Boolean);
+          let startIndex = -1;
+          for (const marker of startMarkers) {
+            const idx = text.indexOf(marker);
+            if (idx >= 0 && (startIndex < 0 || idx < startIndex)) startIndex = idx;
+          }
+          if (startIndex > 0) text = text.slice(startIndex).trim();
+          const endMarkers = [
+            "Задайте вопрос работодателю",
+            "Где предстоит работать",
+            "Вакансия опубликована",
+            "Вам подойдут эти вакансии",
+            "Отзывы о компании",
+            "Dream Job",
+            "HeadHunter",
+          ];
+          for (const marker of endMarkers) {
+            const idx = text.indexOf(marker);
+            if (idx > 0) {
+              text = text.slice(0, idx).trim();
+              break;
+            }
+          }
+          return { title, description: text, skills: Array.from(new Set(skills)) };
+        }
+        """
+    )
+    return {
+        "title": str(payload.get("title") or "").strip(),
+        "description": str(payload.get("description") or "").strip(),
+        "skills": [str(item).strip() for item in list(payload.get("skills") or []) if str(item).strip()],
+    }
+
+
 async def expand_search_results(page: Page, *, attempts: int = 6) -> None:
     previous_count = -1
     stable_rounds = 0

@@ -21,6 +21,7 @@ from autohhkek.services.hh_preflight import ensure_hh_context
 from autohhkek.services.hh_resume_sync import HHResumeProfileSync
 from autohhkek.services.chat_rule_parser import parse_rule_request
 from autohhkek.services.filter_planner import HHFilterPlanner
+from autohhkek.services.hh_refresh import HHVacancyRefresher
 from autohhkek.services.profile_rules import compose_rules_markdown
 from autohhkek.services.rule_loader import apply_rule_bundles, load_rule_bundle_from_text
 from autohhkek.services.rules import build_selection_rules_markdown, build_user_rules_contract, evaluate_intake_readiness
@@ -1015,7 +1016,9 @@ def _ensure_cover_letter_draft(store: WorkspaceStore, *, vacancy_id: str, force:
     if not vacancy_key:
         return ""
     existing = store.load_cover_letter_draft(vacancy_key)
-    if existing.strip() and not force:
+    legacy_markers = ("Кандидат имеет", "кандидат имеет", "ML/AI")
+    legacy_style = any(marker in existing for marker in legacy_markers)
+    if existing.strip() and not force and not legacy_style:
         return existing
     vacancies = {item.vacancy_id: item for item in store.load_vacancies()}
     assessments = {item.vacancy_id: item for item in store.load_assessments()}
@@ -1225,19 +1228,7 @@ def run_resume(store: WorkspaceStore) -> dict[str, Any]:
     draft, markdown = ResumeAgent(store).build_resume_draft()
     rules_markdown = _compose_rules_markdown(store, preferences, anamnesis)
     store.save_selection_rules(rules_markdown)
-    dashboard_state = store.load_dashboard_state()
     resume_extra: dict[str, Any] = {"last_rules_rebuilt_at": utc_now_iso()}
-    if sync_result.get("status") in {"updated", "no_changes"} and not bool(dashboard_state.get("intake_confirmed")):
-        resume_extra.update(
-            {
-                "intake_dialog": {},
-                "intake_dialog_completed": False,
-                "intake_dialog_completed_at": "",
-                "intake_confirmed": False,
-                "intake_confirmed_at": "",
-                "intake_user_rules_contract": {},
-            }
-        )
     store.touch_dashboard_timestamp("last_resume_draft_at", extra=resume_extra)
     _mark_analysis_stale(store, "Профиль и правила обновились. Для свежей очереди вакансий запустите анализ заново.")
     sync_message = str(sync_result.get("message") or "")

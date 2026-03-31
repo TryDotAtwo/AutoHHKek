@@ -576,7 +576,7 @@ function currentPendingStatus() {
   const frames = Array.isArray(state.pendingActionFrames) ? state.pendingActionFrames.filter(Boolean) : [];
   if (!frames.length || !state.pendingActionStartedAt) return state.pendingActionMessage;
   const elapsedMs = Math.max(0, Date.now() - state.pendingActionStartedAt);
-  const frameIndex = Math.floor(elapsedMs / 2200) % frames.length;
+  const frameIndex = Math.floor(elapsedMs / 4200) % frames.length;
   return frames[frameIndex] || state.pendingActionMessage;
 }
 
@@ -588,7 +588,7 @@ function startPendingTicker() {
       return;
     }
     renderChatLog();
-  }, 900);
+  }, 1600);
 }
 
 function stopPendingTicker() {
@@ -610,7 +610,14 @@ function pendingFramesForAction(kind) {
     chat: [
       "Получил сообщение. Разбираю, что именно вы хотите.",
       "Сверяю текущий шаг пайплайна и сохранённое состояние.",
-      "Готовлю ответ и решаю, нужно ли запускать действие.",
+      "Проверяю, не конфликтует ли команда с текущим режимом.",
+      "Собираю контекст по резюме, фильтрам и текущей очереди.",
+      "Смотрю, нужно ли обновить hh-данные перед ответом.",
+      "Сверяю активный аккаунт, выбранное резюме и состояние пайплайна.",
+      "Готовлю короткий ответ без лишнего шума.",
+      "Проверяю, нужно ли запускать действие или достаточно правки состояния.",
+      "Подтягиваю последние изменения из snapshot и журнала событий.",
+      "Готовлю следующий осмысленный шаг по пайплайну.",
     ],
     "hh-login": [
       "Проверяю текущую hh-сессию и готовлю окно входа.",
@@ -624,8 +631,27 @@ function pendingFramesForAction(kind) {
     ],
     analyze: [
       "Собираю входные данные для анализа вакансий.",
+      "Проверяю hh-сессию, резюме и текущий search plan.",
+      "Освежаю очередь вакансий с hh.ru перед оценкой.",
+      "Проверяю, не сузили ли фильтры выдачу слишком рано.",
+      "Подтягиваю полный текст вакансий для локального разбора.",
       "Прогоняю вакансии через оценку и сортировку.",
-      "Готовлю обновлённые карточки и статусы.",
+      "Сверяю причины fit/doubt/no-fit по текущим правилам.",
+      "Собираю обновлённые карточки и объяснения.",
+      "Обновляю counters, source stats и board state.",
+      "Готовлю финальный статус анализа для UI.",
+    ],
+    "refresh-vacancies": [
+      "Открываю hh-поиск по активному резюме.",
+      "Добираю новые карточки вакансий из выдачи.",
+      "Проверяю, не изменилась ли пагинация и total count.",
+      "Сохраняю обновлённую очередь без повторов.",
+      "Готовлю свежий source state для следующего анализа.",
+      "Сверяю новые вакансии с уже сохранёнными.",
+      "Фиксирую search URL и статистику обновления.",
+      "Проверяю, появились ли новые страницы и новые id.",
+      "Подтягиваю видимый текст карточек для описаний.",
+      "Готовлю обновлённый статус refresh.",
     ],
     apply: [
       "Проверяю карточку и текущий статус отклика.",
@@ -892,34 +918,9 @@ function currentActivityMessage(snapshot) {
 }
 
 function collectQuickActions(snapshot) {
-  const actions = [];
-  const currentStep = currentPipelineStep(snapshot);
-  if (currentStep?.action) actions.push(currentStep.action);
-  if (!isIntakeReady(snapshot)) {
-    if (!hhLoginReady(snapshot)) actions.push({ id: "hh-login-fresh", label: "Войти в hh.ru" });
-    else if (!snapshot.selected_resume_id) actions.push({ id: "hh-resumes", label: "Обновить список резюме" });
-    else actions.push({ id: snapshot.setup_summary?.intake_dialog_completed ? "confirm-intake" : "start-intake", label: snapshot.setup_summary?.intake_dialog_completed ? "Подтвердить правила" : "Начать уточнение" });
-  }
-  if (snapshot.hh_accounts?.length) {
-    actions.push({ id: "hh-login", label: "Открыть hh.ru" });
-  }
-  if (isIntakeReady(snapshot) && snapshot.selected_resume_id && snapshot.setup_summary?.rules_loaded && !snapshot.filter_plan?.search_text) {
-    actions.push({ id: "plan-filters", label: "Собрать фильтры" });
-  }
-  if (isIntakeReady(snapshot) && snapshot.selected_resume_id && snapshot.filter_plan?.search_text && !snapshot.analysis_job?.running) {
-    actions.push({ id: "analyze", label: "Запустить анализ" });
-  }
-  if (isIntakeReady(snapshot) && snapshot.counts?.assessed) {
-    actions.push({ id: "open-vacancies", label: "Открыть вакансии" });
-  }
-  const unique = [];
-  const seen = new Set();
-  for (const action of actions) {
-    if (!action?.id || seen.has(action.id)) continue;
-    seen.add(action.id);
-    unique.push(action);
-  }
-  return unique.slice(0, 4);
+  if (!isIntakeReady(snapshot)) return [];
+  if (snapshot.analysis_job?.running) return [];
+  return [{ id: "analyze", label: "Запустить анализ" }];
 }
 
 
@@ -1424,8 +1425,9 @@ function renderChatLog() {
   const lockedReason = chatLockedReason(state.snapshot);
   const lockNote = document.getElementById("chat-lock-note");
   const pendingStatus = currentPendingStatus();
+  const visibleHistory = state.chatHistory.filter((item) => String(item?.text || "").trim());
   log.innerHTML = renderList(
-    pendingStatus ? [...state.chatHistory, { role: "assistant", text: pendingStatus }] : state.chatHistory,
+    pendingStatus ? [...visibleHistory, { role: "assistant", text: pendingStatus }] : visibleHistory,
     (item) => `<article class="chat-message chat-message--${escapeHtml(item.role)}"><span>${escapeHtml(item.role === "assistant" ? "агент" : "вы")}</span><p>${escapeHtml(item.text)}</p></article>`,
     "Чат пуст.",
   );
@@ -1456,6 +1458,7 @@ function renderChatSidebar(snapshot) {
   if (!document.getElementById("chat-log")) renderChatShell();
   const quickActions = document.getElementById("chat-quick-actions");
   quickActions.innerHTML = renderActionButtons(collectQuickActions(snapshot), "button--chip");
+  quickActions.style.display = quickActions.innerHTML.trim() ? "flex" : "none";
   wireActionButtons(quickActions);
   renderChatLog();
 }
@@ -1701,6 +1704,8 @@ async function handleServerAction(url, payload = {}, onSuccess) {
     ? "Обновляю действия по вакансии."
     : (url.includes("/hh-login")
       ? "Открываю hh.ru для входа."
+      : (url.includes("/refresh-vacancies")
+        ? "Ещё раз подтягиваю вакансии с hh.ru."
       : (url.includes("/resume")
         ? "Обновляю профиль и черновик резюме."
         : (url.includes("/analyze")
@@ -1709,14 +1714,16 @@ async function handleServerAction(url, payload = {}, onSuccess) {
             ? "Готовлю действие по отклику."
             : (url.includes("/apply-batch")
               ? `Запускаю пакетную отправку откликов по колонке ${categoryLabel(payload?.category || "")}.`
-              : "Выполняю действие.")))));
+              : "Выполняю действие."))))));
   const pendingKind = url.includes("/hh-login")
     ? "hh-login"
+    : (url.includes("/refresh-vacancies")
+      ? "refresh-vacancies"
     : (url.includes("/resume")
       ? "resume"
       : (url.includes("/analyze")
         ? "analyze"
-        : (url.includes("/apply") ? "apply" : "generic")));
+        : (url.includes("/apply") ? "apply" : "generic"))));
   state.isBusy = true;
   setPendingStatus(pendingMessage, pendingFramesForAction(pendingKind));
   renderChatLog();
@@ -1795,6 +1802,7 @@ async function runDashboardAction(actionId, chatPrompt = "") {
     "build-rules": ["/api/actions/build-rules", {}],
     "plan-filters": ["/api/actions/plan-filters", {}],
     analyze: ["/api/actions/analyze", { limit: 120 }],
+    "refresh-vacancies": ["/api/actions/refresh-vacancies", { limit: 0 }],
     "apply-plan": ["/api/actions/apply-plan", { vacancy_id: state.selectedVacancyId || "" }],
   };
   const route = routes[actionId];
@@ -1832,10 +1840,15 @@ function renderVacancies(snapshot) {
           <span class="panel-kicker">Очередь откликов</span>
           <h2>Вакансии, разбитые по трём колонкам</h2>
         </div>
+        <div class="inline-actions">
+          <button class="button button--ghost button--compact" type="button" data-dashboard-action="refresh-vacancies" ${snapshot.analysis_job?.running ? "disabled" : ""}>Ещё раз спарсить вакансии</button>
+          <button class="button button--primary button--compact" type="button" data-dashboard-action="analyze" ${snapshot.analysis_job?.running ? "disabled" : ""}>Запустить анализ</button>
+        </div>
       </div>
       <div class="stack compact board-summary">
         <div class="note"><strong>Статус анализа</strong><p>${escapeHtml(snapshot.analysis_job?.message || "Оценка очереди не запускалась.")}</p></div>
-        <div class="note"><strong>Источник</strong><p>${escapeHtml(snapshot.setup_summary?.live_refresh_message || "Источник вакансий ещё не обновлялся.")}</p></div>
+        <div class="note"><strong>Источник</strong><p>${escapeHtml(snapshot.setup_summary?.live_refresh_message || "Источник вакансий ещё не обновлялся.")}</p><p class="muted">${escapeHtml(`На hh.ru видно ${snapshot.setup_summary?.live_refresh_stats?.total_available || 0}, в локальной очереди ${snapshot.setup_summary?.live_refresh_stats?.count || 0}, новых после refresh ${snapshot.setup_summary?.live_refresh_stats?.new_count || 0}.`)}</p></div>
+        <div class="note"><strong>Фильтры поиска</strong><p>${escapeHtml(snapshot.filter_plan?.search_text || "Широкий resume-first поиск без текстового сужения.")}</p><p class="muted">${escapeHtml((snapshot.filter_plan?.residual_rules || []).slice(0, 3).join(" • ") || "Жёстко режем только очевидный no-fit, остальное уходит в локальную оценку.")}</p></div>
         <div class="note"><strong>Лимит откликов</strong><p>${escapeHtml(`Сегодня использовано ${applyLimits.used_today || 0} из ${applyLimits.daily_limit || 200}, осталось ${applyLimits.remaining_today || 0}.`)}</p></div>
       </div>
       <div class="board">
@@ -1882,6 +1895,7 @@ function renderVacancies(snapshot) {
       </div>
     </div>
   `;
+  wireActionButtons(root);
   root.querySelectorAll("[data-open-vacancy]").forEach((node) =>
     node.addEventListener("click", () => {
       pauseAutoRefresh(8000);
@@ -2020,7 +2034,7 @@ function renderVacancyDetail(snapshot) {
         </div>
         <details class="details-box vacancy-description" ${descriptionOpen ? "open" : ""}>
           <summary>Описание вакансии</summary>
-          <div class="description-text">${escapeHtml(card.description || card.summary || "Описание вакансии не сохранено.")}</div>
+          <div class="description-text">${escapeHtml(card.description || card.summary || "Полный текст вакансии пока не сохранён. Нажмите «Ещё раз спарсить вакансии».")}</div>
         </details>
       </section>
       <aside class="panel panel--detail-side">
@@ -2031,6 +2045,17 @@ function renderVacancyDetail(snapshot) {
           </div>
         </div>
         <div class="note"><strong>Текущее решение</strong><p>${escapeHtml(card.category_label || "ещё не выбрано")}</p><p class="muted">${escapeHtml(feedback.decided_at ? formatDate(feedback.decided_at) : "автоматическая оценка")}</p></div>
+        <div class="cta-grid cta-grid--decision-bottom">
+          ${Object.entries(decisionMeta)
+            .map(
+              ([key, meta]) => `
+                <button class="button ${escapeHtml(meta.className)} ${feedback.decision === key ? "is-active" : ""}" type="button" data-feedback="${escapeHtml(key)}">
+                  ${escapeHtml(meta.label)}
+                </button>
+              `,
+            )
+            .join("")}
+        </div>
         <div class="field">
           <label for="cover-letter-input">Сопроводительное письмо</label>
           <textarea id="cover-letter-input" rows="12" placeholder="Здесь можно отредактировать письмо перед откликом">${escapeHtml(coverLetter)}</textarea>

@@ -45,14 +45,13 @@ class ResumeAgent:
         if preferences.cover_letter_mode == "never":
             return ""
 
-        skills = ", ".join(anamnesis.primary_skills[:5]) or "Python, ML, LLM"
-        explanation = (assessment.explanation or "").strip()
+        skills = ", ".join(anamnesis.primary_skills[:5]) or "Python"
         body = (
             f"Здравствуйте! Меня заинтересовала вакансия {vacancy.title}"
             f"{f' в {vacancy.company}' if vacancy.company else ''}. "
-            f"У меня {anamnesis.experience_years:g} лет опыта в направлении {anamnesis.headline or 'ML/AI'}, "
-            f"основной стек включает {skills}. "
-            f"{explanation} Готов подробно обсудить наиболее релевантный для этой вакансии опыт и аккуратно пройти анкету или тест, если они предусмотрены."
+            f"У меня {anamnesis.experience_years:g} года опыта в направлении {anamnesis.headline or 'специалист'}, "
+            f"в работе мне помогают навыки {skills}. "
+            f"Мне близки задачи этой роли, и я готова подробнее рассказать о релевантном опыте и пройти необходимые этапы отбора."
         )
         return self._sanitize_cover_letter(body)
 

@@ -179,7 +179,7 @@ body {
 
 .chat-panel,
 .panel {
-  padding: 1rem 1.05rem;
+  padding: 1.2rem 1.25rem;
 }
 
 .chat-panel {
@@ -525,7 +525,7 @@ body {
 }
 
 .note {
-  padding: 0.85rem 0.95rem;
+  padding: 1rem 1.05rem;
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(31, 37, 40, 0.08);
@@ -554,14 +554,18 @@ body {
   gap: 0.7rem;
   min-height: 0;
   overflow: auto;
+  overflow-x: hidden;
   padding: 0.3rem 0.1rem;
 }
 
 .chat-message {
-  padding: 0.85rem 0.95rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 1rem 1.05rem;
   border-radius: 18px;
   border: 1px solid rgba(31, 37, 40, 0.08);
   background: rgba(255, 255, 255, 0.82);
+  overflow: hidden;
 }
 
 .chat-message--assistant {
@@ -589,17 +593,21 @@ body {
 .chat-message p {
   margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .chat-form {
   display: grid;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .chat-form textarea,
 .intake-form textarea,
 .field textarea {
   width: 100%;
+  max-width: 100%;
   padding: 0.95rem 1rem;
   border-radius: 18px;
   border: 1px solid rgba(31, 37, 40, 0.14);
@@ -607,6 +615,26 @@ body {
   color: var(--ink);
   font: inherit;
   resize: vertical;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chat-panel-head,
+.chip-row {
+  min-width: 0;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.description-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .board-summary {
@@ -1067,6 +1095,22 @@ a {
   font-size: 1.08rem;
   line-height: 1.85;
   color: var(--ink);
+}
+
+.board-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cta-grid--decision-bottom {
+  margin-bottom: 1rem;
+}
+
+.detail-meta-grid,
+.detail-block,
+.cta-stack,
+.field,
+.note--decision {
+  margin-top: 0.6rem;
 }
 
 .panel-head--vacancy {

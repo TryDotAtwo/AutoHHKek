@@ -379,7 +379,7 @@ def _vacancy_card(vacancy, assessment) -> dict[str, Any]:
         "review_notes": _clean_text(assessment.review_notes),
         "reasons": reasons,
         "summary": _clean_text(vacancy.summary, "Краткое описание вакансии недоступно."),
-        "description": _clean_text(vacancy.description[:1500], "Описание вакансии требует повторной загрузки."),
+        "description": _clean_text(vacancy.description[:5000], "Полный текст вакансии пока не сохранён."),
         "skills": vacancy.skills,
     }
 
@@ -991,6 +991,7 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
                 "apply-batch",
                 "apply-submit",
                 "vacancy-feedback",
+                "refresh-vacancies",
             ],
         },
         "hh_resumes": hh_resumes,
