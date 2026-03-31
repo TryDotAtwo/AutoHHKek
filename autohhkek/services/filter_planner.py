@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from urllib.parse import urlencode
 from autohhkek.agents.g4f_filter_agent import G4FHHFilterAgent
 from autohhkek.agents.openai_filter_agent import OpenAIHHFilterAgent
@@ -11,6 +12,28 @@ HH_AREA_CODES = {
     "\u0441\u0430\u043d\u043a\u0442-\u043f\u0435\u0442\u0435\u0440\u0431\u0443\u0440\u0433": "2",
 }
 
+REMOTE_MARKERS = ("удален", "удалён", "remote", "home office", "work from home")
+
+
+def _normalize_phrase(value: str) -> str:
+    cleaned = re.sub(r"\s+", " ", str(value or "").replace("\xa0", " ")).strip(" ,;/")
+    return cleaned
+
+
+def _dedupe_preserve_order(items: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        normalized = _normalize_phrase(item)
+        if not normalized:
+            continue
+        key = normalized.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(normalized)
+    return result
+
 
 class HHFilterPlanner:
     def __init__(
@@ -18,7 +41,7 @@ class HHFilterPlanner:
         preferences: UserPreferences,
         anamnesis: Anamnesis,
         selected_resume_id: str = "",
-        llm_backend: str = "openai",
+        llm_backend: str = "openrouter",
         llm_planner: OpenAIHHFilterAgent | None = None,
     ) -> None:
         self.preferences = preferences
@@ -32,7 +55,7 @@ class HHFilterPlanner:
         llm_plan = self.llm_planner.plan(self.preferences, self.anamnesis)
         search_text = self._build_search_text()
         salary_min = self.preferences.salary_min
-        remote_only = self.preferences.remote_only
+        remote_only = self._prefer_hh_remote_filter()
         area_code = self._pick_area_code()
         residual_rules = self._build_residual_rules()
         planning_notes: list[str] = []
@@ -54,9 +77,9 @@ class HHFilterPlanner:
             if salary_min is None and llm_plan.salary_min is not None:
                 salary_min = llm_plan.salary_min
             if not remote_only and llm_plan.remote_only:
-                remote_only = True
+                residual_rules.append("Planner prefers remote vacancies, but hh search stays broad and applies this during scoring.")
             if not area_code and llm_plan.area_code:
-                area_code = llm_plan.area_code
+                residual_rules.append(f"Planner suggested area code {llm_plan.area_code}, but hh search stays broad unless location is a hard constraint.")
             for rule in llm_plan.residual_rules:
                 if rule and rule not in residual_rules:
                     residual_rules.append(rule)
@@ -76,8 +99,7 @@ class HHFilterPlanner:
             ui_actions.append(self.registry.execute("set_search_text", {"query": search_text}).to_dict())
 
         if salary_min:
-            query_params["salary_from"] = salary_min
-            ui_actions.append(self.registry.execute("set_salary_min", {"salary_min": salary_min}).to_dict())
+            residual_rules.append(f"Salary preference: от {salary_min}. Не режем hh-поиск этим фильтром, применяем как мягкий критерий.")
 
         if remote_only:
             query_params["remote_work"] = "1"
@@ -103,19 +125,42 @@ class HHFilterPlanner:
         }
 
     def _build_search_text(self) -> str:
-        titles = [item.strip() for item in self.preferences.target_titles if item.strip()]
+        titles = self._target_titles_for_search()
+        skills = self._skill_terms_for_search()
+        parts: list[str] = []
         if titles:
-            return " OR ".join(titles)
-        skills = [item.strip() for item in self.anamnesis.primary_skills if item.strip()]
-        return " ".join(skills)
+            parts.append(" OR ".join([f'"{item}"' if " " in item else item for item in titles[:3]]))
+        if skills:
+            parts.extend(skills[:3])
+        return " ".join(parts).strip()
 
     def _prefer_resume_only_search(self) -> bool:
         if not self.selected_resume_id:
             return False
-        explicit_titles = [item.strip() for item in self.preferences.target_titles if item.strip()]
-        explicit_skills = [item.strip() for item in self.anamnesis.primary_skills if item.strip()]
-        explicit_required = [item.strip() for item in self.preferences.required_skills if item.strip()]
-        return not (explicit_titles or explicit_skills or explicit_required)
+        if self.preferences.forbidden_keywords or self.preferences.excluded_keywords:
+            return False
+        return True
+
+    def _target_titles_for_search(self) -> list[str]:
+        source = [item for item in self.preferences.target_titles if item.strip()]
+        if not source and self.anamnesis.headline:
+            source = [self.anamnesis.headline]
+        candidates: list[str] = []
+        for item in source:
+            parts = re.split(r"[/|;,]+", item)
+            for part in parts:
+                candidate = _normalize_phrase(part)
+                if not candidate or len(candidate) < 3:
+                    continue
+                candidates.append(candidate)
+        return _dedupe_preserve_order(candidates)
+
+    def _skill_terms_for_search(self) -> list[str]:
+        source = list(self.preferences.required_skills) + list(self.preferences.preferred_skills) + list(self.anamnesis.primary_skills)
+        return _dedupe_preserve_order([item for item in source if _normalize_phrase(item)])
+
+    def _prefer_hh_remote_filter(self) -> bool:
+        return bool(self.preferences.remote_only)
 
     def _build_residual_rules(self) -> list[str]:
         residual_rules: list[str] = []
@@ -125,14 +170,24 @@ class HHFilterPlanner:
             residual_rules.append(f"Reject vacancies containing: {term}")
         if self.preferences.notes:
             residual_rules.append(f"User note: {self.preferences.notes}")
+        if self._infer_remote_only() and not self.preferences.remote_only:
+            residual_rules.append("Remote/удалёнка указаны в предпочтениях пользователя, даже если флаг remote_only ещё не был сохранён.")
         return residual_rules
 
     def _pick_area_code(self) -> str:
+        if self.selected_resume_id:
+            return ""
         for location in self.preferences.preferred_locations:
             code = HH_AREA_CODES.get(location.strip().lower())
             if code:
                 return code
         return ""
+
+    def _infer_remote_only(self) -> bool:
+        if self.preferences.remote_only:
+            return True
+        haystack = " ".join([*self.preferences.preferred_locations, self.preferences.notes]).casefold()
+        return any(marker in haystack for marker in REMOTE_MARKERS)
 
     def _build_search_url(self, query_params: dict[str, object]) -> str:
         params: list[tuple[str, str]] = [

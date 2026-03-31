@@ -7,6 +7,7 @@ from time import monotonic
 
 from autohhkek.services.account_profiles import derive_account_profile
 from autohhkek.services.hh_resume_catalog import HHResumeCatalog
+from autohhkek.services.playwright_browser import ensure_async_subprocess_available
 from autohhkek.services.storage import WorkspaceStore
 
 
@@ -50,7 +51,7 @@ async def _launch_login_browser(playwright):
             return await playwright.chromium.launch(channel="msedge", headless=False)
 
 
-async def _run_login_async(project_root: Path, *, timeout_sec: int = 600) -> dict[str, object]:
+async def _run_login_async(project_root: Path, *, timeout_sec: int = 600, fresh_start: bool = False) -> dict[str, object]:
     from playwright.async_api import async_playwright
 
     current_store = WorkspaceStore(project_root.resolve())
@@ -58,7 +59,7 @@ async def _run_login_async(project_root: Path, *, timeout_sec: int = 600) -> dic
     seed_state = current_store.hh_state_path
     async with async_playwright() as playwright:
         browser = await _launch_login_browser(playwright)
-        storage_state = _load_storage_state(seed_state)
+        storage_state = {} if fresh_start else _load_storage_state(seed_state)
         context = await browser.new_context(
             viewport={"width": 1440, "height": 1000},
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -87,6 +88,7 @@ async def _run_login_async(project_root: Path, *, timeout_sec: int = 600) -> dic
                     "message": "hh.ru login state saved.",
                     "state_path": str(state_path),
                     "final_url": page.url,
+                    "fresh_start": fresh_start,
                 }
             await asyncio.sleep(2)
 
@@ -98,9 +100,13 @@ async def _run_login_async(project_root: Path, *, timeout_sec: int = 600) -> dic
         }
 
 
-def run_hh_login(project_root: Path, *, timeout_sec: int = 600) -> dict[str, object]:
+def run_hh_login(project_root: Path, *, timeout_sec: int = 600, fresh_start: bool = False) -> dict[str, object]:
     project_root = project_root.resolve()
-    result = asyncio.run(_run_login_async(project_root, timeout_sec=timeout_sec))
+    try:
+        ensure_async_subprocess_available()
+        result = asyncio.run(_run_login_async(project_root, timeout_sec=timeout_sec, fresh_start=fresh_start))
+    except Exception as exc:  # noqa: BLE001
+        result = {"status": "failed", "message": str(exc)}
     store = WorkspaceStore(project_root)
     if result.get("status") != "completed":
         store.touch_dashboard_timestamp(

@@ -21,7 +21,7 @@ class VacancyReviewAgent:
     ) -> None:
         self.preferences = preferences
         self.anamnesis = anamnesis
-        self.runtime_settings = runtime_settings or RuntimeSettings(llm_backend=llm_backend or "openai")
+        self.runtime_settings = runtime_settings or RuntimeSettings(llm_backend=llm_backend or "openrouter")
         self.rule_engine = VacancyRuleEngine(preferences, anamnesis)
         self.openai_reviewer = openai_reviewer or OpenAIVacancyReviewer()
         self.openrouter_reviewer = openrouter_reviewer or OpenRouterVacancyReviewer()

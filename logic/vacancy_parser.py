@@ -119,7 +119,7 @@ async def extract_page_vacancies(page: Page) -> List[Dict[str, str]]:
             if (!/\\/vacancy\\/\\d+/.test(href)) continue;
             const title = normalize(link.textContent);
             if (!title || title.length < 3) continue;
-            const absoluteHref = new URL(href, location.origin).href;
+            const absoluteHref = new URL(href, window.location.origin).href;
             const salary =
               card.querySelector("[data-qa='vacancy-serp__vacancy-compensation']") ||
               card.querySelector("[data-qa='serp-item__compensation']") ||
@@ -132,7 +132,7 @@ async def extract_page_vacancies(page: Page) -> List[Dict[str, str]]:
               card.querySelector("[data-qa*='company']") ||
               card.querySelector("a[href*='/employer/']") ||
               card.querySelector("span[data-qa*='employer']");
-            const location =
+            const locationNode =
               card.querySelector("[data-qa='vacancy-serp__vacancy-address']") ||
               card.querySelector("[data-qa='vacancy-serp__vacancy-address-text']") ||
               card.querySelector("[data-qa='serp-item__location']") ||
@@ -147,9 +147,10 @@ async def extract_page_vacancies(page: Page) -> List[Dict[str, str]]:
               href: absoluteHref,
               salary_text: normalize(salary?.textContent || ""),
               company: normalize(company?.textContent || ""),
-              location: normalize(location?.textContent || ""),
+              location: normalize(locationNode?.textContent || ""),
               summary: normalize(snippet?.textContent || ""),
               all_text: normalize(card.innerText || ""),
+              description: normalize(card.innerText || ""),
             });
           }
           if (result.length === 0) {
@@ -159,7 +160,7 @@ async def extract_page_vacancies(page: Page) -> List[Dict[str, str]]:
               if (!/\\/vacancy\\/\\d+/.test(href)) continue;
               const title = normalize(link.textContent);
               if (!title || title.length < 3) continue;
-              const absoluteHref = new URL(href, location.origin).href;
+              const absoluteHref = new URL(href, window.location.origin).href;
               let card = link.closest("article, li, div");
               let cursor = link.parentElement;
               for (let depth = 0; !card && cursor && depth < 8; depth += 1) {
@@ -173,7 +174,7 @@ async def extract_page_vacancies(page: Page) -> List[Dict[str, str]]:
               const searchRoot = card || link.parentElement || link;
               const company =
                 searchRoot.querySelector?.("[data-qa*='vacancy-employer'], [data-qa*='company'], a[href*='/employer/'], span[data-qa*='employer']")?.textContent || "";
-              const location =
+              const locationNode =
                 searchRoot.querySelector?.("[data-qa*='vacancy-address'], [data-qa*='location']")?.textContent || "";
               const salary =
                 searchRoot.querySelector?.("[data-qa*='compensation']")?.textContent || "";
@@ -182,9 +183,10 @@ async def extract_page_vacancies(page: Page) -> List[Dict[str, str]]:
                 href: absoluteHref,
                 salary_text: normalize(salary),
                 company: normalize(company),
-                location: normalize(location),
+                location: normalize(locationNode),
                 summary: "",
                 all_text: normalize((card || link).innerText || ""),
+                description: normalize((card || link).innerText || ""),
               });
             }
           }
@@ -253,10 +255,37 @@ async def extract_page_vacancies(page: Page) -> List[Dict[str, str]]:
                 "location": location,
                 "employment": "",
                 "summary": summary,
+                "description": all_visible or summary,
                 "is_remote": "true" if re.search(r"(удал[её]н|remote)", all_visible, re.IGNORECASE) else "false",
             }
         )
     return vacancies
+
+
+async def expand_search_results(page: Page, *, attempts: int = 6) -> None:
+    previous_count = -1
+    stable_rounds = 0
+    for _ in range(attempts):
+        try:
+            current_count = await page.locator("a[href*='/vacancy/']").count()
+        except Exception:
+            current_count = -1
+        if current_count == previous_count and current_count > 0:
+            stable_rounds += 1
+        else:
+            stable_rounds = 0
+        if stable_rounds >= 2:
+            break
+        previous_count = current_count
+        try:
+            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        except Exception:
+            pass
+        await page.wait_for_timeout(900)
+    try:
+        await page.evaluate("window.scrollTo(0, 0)")
+    except Exception:
+        pass
 
 
 
@@ -363,11 +392,7 @@ async def search_vacancies(
     # Загрузка первой страницы
     await goto_with_retry(page, base_url, wait_until="domcontentloaded", timeout=60000)
     print("Страница поиска по резюме загружена.")
-    
-    # Сделать скриншот для дебага
-    await page.screenshot(path='debug_search_page.png')
-    # print("DEBUG: Скриншот сохранён как debug_search_page.png")
-    
+
     # Извлечение session_id и total_count
     search_session_id = await get_search_session_id(page)
     if search_session_id:
@@ -382,7 +407,7 @@ async def search_vacancies(
     except:
         print("Контейнер вакансий не найден на первой странице.")
         return [], total_count, {"search_url": base_url, "pages_parsed": 0, "search_session_id": search_session_id}
-    
+    await expand_search_results(page)
     first_page_vacancies = await extract_page_vacancies(page)
     
     if len(first_page_vacancies) != 100:
@@ -437,7 +462,7 @@ async def search_vacancies(
             except:
                 print(f"Контейнер вакансий не найден на странице {current_page_num + 1}. Возможно, конец пагинации.")
                 break
-            
+            await expand_search_results(page)
             page_vacancies = await extract_page_vacancies(page)
             
             if len(page_vacancies) == 0:
@@ -479,7 +504,7 @@ async def search_vacancies(
             except:
                 print(f"Контейнер вакансий не найден на странице {current_page_num + 1}. Возможно, конец пагинации.")
                 break
-            
+            await expand_search_results(page)
             page_vacancies = await extract_page_vacancies(page)
             
             if len(page_vacancies) == 0:

@@ -1,0 +1,395 @@
+{
+  "last_hh_login_at": "2026-03-28T15:15:30.031774+00:00",
+  "last_resume_catalog_at": "2026-03-28T17:11:27.768942+00:00",
+  "last_resume_catalog_status": "completed",
+  "last_resume_catalog_count": 2,
+  "intake_dialog": {
+    "active": false,
+    "completed": true,
+    "step_index": 10,
+    "questions": [
+      {
+        "id": "target_titles",
+        "title": "Подтверждаем целевые роли или хотите их сузить?",
+        "hint": "Резюме уже даёт базовое позиционирование. Здесь нужно только подтвердить его или поправить.",
+        "example": "Пример: \"Оставить как есть\" или \"Сузить до LLM Engineer и NLP Engineer\".",
+        "prefill": "LLM Engineer, Research Scientist",
+        "importance": "critical"
+      },
+      {
+        "id": "required_skills",
+        "title": "Что из уже видимого в профиле считаем must-have?",
+        "hint": "Нужно отделить обязательное от просто полезного, а не заново перечислять весь стек.",
+        "example": "Пример: \"must-have: Python, NLP/LLM, сильная инженерная часть\".",
+        "prefill": "NLP, LLM",
+        "importance": "critical"
+      },
+      {
+        "id": "work_mode",
+        "title": "Какой формат работы допустим?",
+        "hint": "Это один из немногих критичных пунктов, который обычно не достаётся уверенно из резюме.",
+        "example": "Пример: \"Только remote. Россия или международные команды. Переезд не нужен\".",
+        "prefill": "",
+        "importance": "critical"
+      },
+      {
+        "id": "excluded_companies",
+        "title": "Какие компании или типы работодателей точно исключаем?",
+        "hint": "Это нужно, чтобы не тратить время на заведомо нежелательные вакансии.",
+        "example": "Пример: \"госструктуры, университеты, research institutes, окологос проекты\".",
+        "prefill": "",
+        "importance": "critical"
+      },
+      {
+        "id": "forbidden_keywords",
+        "title": "Какие стоп-слова и признаки режут вакансию сразу?",
+        "hint": "Это помогает быстро вычищать шум из большой выдачи.",
+        "example": "Пример: \"CV only, computer vision only, sales, преподавание, госслужба\".",
+        "prefill": "",
+        "importance": "critical"
+      },
+      {
+        "id": "salary_min",
+        "title": "Какая минимальная компенсация имеет смысл?",
+        "hint": "Если жёсткого порога нет, это тоже нормальный ответ.",
+        "example": "Пример: \"От 350000 net\" или \"Жесткого порога нет\".",
+        "prefill": "",
+        "importance": "critical"
+      },
+      {
+        "id": "industries",
+        "title": "Какие домены и типы задач вам реально интересны?",
+        "hint": "Это помогает агенту понимать смысл вакансии, а не только слова в названии.",
+        "example": "Пример: \"интересно: LLM products, AI infra; не хочу: госуха, чистая академия\".",
+        "prefill": "",
+        "importance": "important"
+      },
+      {
+        "id": "preferred_skills",
+        "title": "Что желательно, но не обязательно?",
+        "hint": "Это повышает приоритет, но не является жестким стоп-фактором.",
+        "example": "Пример: \"RAG, MLOps, production ML, agents\".",
+        "prefill": "",
+        "importance": "important"
+      },
+      {
+        "id": "languages",
+        "title": "Какие языки реально рабочие?",
+        "hint": "Это влияет на поиск, анкеты и тон сопроводительных.",
+        "example": "Пример: \"Русский свободно, английский C1\".",
+        "prefill": "",
+        "importance": "optional"
+      },
+      {
+        "id": "links",
+        "title": "Какие ссылки стоит использовать в откликах?",
+        "hint": "GitHub, Scholar, LinkedIn, портфолио и статьи усиливают профиль.",
+        "example": "Пример: \"GitHub ..., Scholar ..., LinkedIn ...\".",
+        "prefill": "",
+        "importance": "optional"
+      },
+      {
+        "id": "extras",
+        "title": "Есть ли еще пожелания или тонкие ограничения?",
+        "hint": "Это финальный свободный вопрос на случай, если в резюме и правилах что-то важное ещё не отражено.",
+        "example": "Пример: \"не хочу слишком junior-роли; письмо всегда только на русском\".",
+        "prefill": "",
+        "importance": "optional"
+      }
+    ],
+    "answers": {
+      "work_mode": "Удаленка",
+      "excluded_companies": "Пример ок"
+    },
+    "context": {
+      "resume_title": "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs Обновлено сегодня в 16:37 , Подключено автоподнятие",
+      "summary": "",
+      "inferred_roles": [
+        "LLM Engineer",
+        "Research Scientist"
+      ],
+      "detected_skills": [
+        "NLP",
+        "LLM"
+      ],
+      "detected_languages": [],
+      "detected_links": [],
+      "detected_experience": 0.0,
+      "detected_domains": [],
+      "likely_constraints": [],
+      "missing_topics": [],
+      "llm_analysis": {},
+      "llm_blocked": false
+    },
+    "started_at": "2026-03-28T14:35:43.512751+00:00",
+    "updated_at": "2026-03-28T14:36:40.864756+00:00",
+    "completed_at": "2026-03-28T14:36:40.864756+00:00"
+  },
+  "intake_dialog_completed": true,
+  "intake_dialog_completed_at": "2026-03-28T14:36:40.881881+00:00",
+  "intake_confirmed": false,
+  "intake_confirmed_at": "",
+  "last_rules_rebuilt_at": "2026-03-28T15:16:47.279716+00:00",
+  "intake_user_rules_contract": {
+    "meta": {
+      "status": "active",
+      "dialog_completed": true,
+      "confirmed": true
+    },
+    "candidate_profile": {
+      "short_summary": "Формат работы: Удаленка",
+      "seniority_target": [],
+      "core_strengths": [
+        "NLP",
+        "LLM"
+      ],
+      "known_gaps": []
+    },
+    "search_targets": {
+      "primary_roles": [
+        "LLM Engineer",
+        "Research Scientist"
+      ],
+      "secondary_roles": [],
+      "exclude_roles": [],
+      "must_have_keywords": [],
+      "nice_to_have_keywords": [
+        "NLP",
+        "LLM"
+      ],
+      "exclude_keywords": []
+    },
+    "hard_constraints": {
+      "work_format": "flexible",
+      "locations_allowed": [
+        "Удаленка"
+      ],
+      "relocation_allowed": false,
+      "salary_min_rub_month_net": null,
+      "exclude_company_types": [
+        "Пример ок"
+      ],
+      "exclude_vacancy_signals": [],
+      "must_have_vacancy_signals": []
+    },
+    "soft_preferences": {
+      "preferred_domains": [],
+      "preferred_company_stages": [],
+      "preferred_team_traits": [],
+      "avoid_if_possible": []
+    },
+    "evaluation_policy": {
+      "unknown_hard_constraint_result": "doubt",
+      "fit_threshold": 75,
+      "doubt_threshold": 45,
+      "weights": {
+        "role_match": 25,
+        "skills_match": 25,
+        "work_format": 20,
+        "salary": 15,
+        "domain_match": 10,
+        "company_type_match": 5
+      }
+    },
+    "cover_letter_policy": {
+      "language": "ru",
+      "tone": ", ,  ",
+      "max_chars": 1200,
+      "must_include": [
+        "1-2    ",
+        "    ",
+        "   "
+      ],
+      "must_not_include": [
+        " ",
+        "  ",
+        " "
+      ],
+      "evidence_points_priority": [
+        "NLP",
+        "LLM"
+      ]
+    },
+    "questionnaire_policy": {
+      "allowed_fact_sources": [
+        "resume_facts",
+        "chat_answers",
+        "user_rules"
+      ],
+      "must_ask_user_if_missing": [
+        " ",
+        " ",
+        "  ",
+        "   "
+      ],
+      "can_autofill_if_confident": [
+        "",
+        "",
+        "",
+        "",
+        " "
+      ],
+      "test_task_policy": {
+        "auto_accept_short_form": false,
+        "ask_before_take_home_task": true,
+        "ask_before_long_questionnaire": true
+      }
+    },
+    "apply_policy": {
+      "auto_generate_cover_letter_for_fit": true,
+      "auto_generate_cover_letter_when_moved_to_fit": true,
+      "auto_apply_categories": [
+        "fit"
+      ],
+      "daily_apply_limit": 200,
+      "per_hour_soft_limit": 25,
+      "delay_between_actions_sec": {
+        "min": 45,
+        "max": 150
+      }
+    },
+    "provenance": {
+      "resume_based": [
+        "candidate_profile.core_strengths",
+        "search_targets.primary_roles"
+      ],
+      "user_confirmed": [
+        "hard_constraints.work_format",
+        "hard_constraints.salary_min_rub_month_net"
+      ],
+      "inferred": [
+        "candidate_profile.short_summary"
+      ]
+    },
+    "notes_for_followup": []
+  },
+  "last_intake_at": "2026-03-28T14:36:40.854618+00:00",
+  "last_resume_sync_at": "2026-03-28T15:15:37.011451+00:00",
+  "last_resume_sync_status": "updated",
+  "last_resume_sync_resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f",
+  "last_resume_sync_title": "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs",
+  "last_resume_sync_extracted": {
+    "headline": "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs",
+    "summary": "Статьи: https://www.researchgate.net/profile/Ivan-Litvak https://scholar.google.com/citations?hl=ru&user=sDTrqxIAAAAJ Гитхаб: https://github.com/TryDotAtwo Участвовал в разработке бенчмарка: https://huggingface.co/datasets/lawful-good-project/sud-resh-benchmark Агент для автооткликов на хх: https://github.com/TryDotAtwo/AutoHHKek Препринт с оценками качества метрик для оценки экстракции (проходит рецензирование в топ-10 журнале мира в области юриспруденции): https://vk.cc/cQ0G9b Хорошо владею различными областями математики и физики. Обладаю опытом внедрения LLM в рабочие процессы и оценке качества LLM. Участвовал в работе над различными проектами в качестве научного консультанта, в процессе работы помогал разобраться с логикой работы алгоритмов в части математики, разрабатывал математическую часть алгоритмов. Участвую в проекте реализации юридической большой языковой модели в области российского права. Подлиннее: Физик-теоретик с магой МФТИ, работаю в ОИЯИ (но если есть предложения о ",
+    "experience_years": 8.8,
+    "skills": [
+      "Python",
+      "NLP",
+      "LLM"
+    ],
+    "languages": [
+      "Русский"
+    ],
+    "links": [
+      "https://www.researchgate.net/profile/Ivan-Litvak",
+      "https://scholar.google.com/citations?hl=ru&user=sDTrqxIAAAAJ",
+      "https://github.com/TryDotAtwo",
+      "https://huggingface.co/datasets/lawful-good-project/sud-resh-benchmark",
+      "https://github.com/TryDotAtwo/AutoHHKek",
+      "https://vk.cc/cQ0G9b",
+      "https://hh.ru/resume/07687234ff0dd3ea5f0039ed1f47594655564f",
+      "https://github.com/TryDotAtwo/Anal_Russia_Klinik2025",
+      "https://github.com/TryDotAtwo/TgBotWithLLMInterface",
+      "https://github.com/TryDotAtwo/TgBot-ForEducation",
+      "https://huggingface.co/TryDotAtwo/ruBERT-ruLaw",
+      "https://github.com/TryDotAtwo/Agentic_Solve_Math",
+      "https://тупа.рф",
+      "https://huggingface.co/datasets/lawful-good-project/sud_resh_evaluated_llms_answers",
+      "https://github.com/jennyzzt/dgm/tree/main"
+    ],
+    "target_titles": [
+      "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs",
+      "LLM Engineer",
+      "Research Scientist"
+    ]
+  },
+  "last_resume_sync_change_count": 1,
+  "last_resume_sync_message": "Синхронизация профиля обновила поля: 1.",
+  "last_resume_draft_at": "2026-03-28T15:16:47.285828+00:00",
+  "last_live_refresh_total_available": 1283,
+  "last_live_refresh_count": 1203,
+  "last_live_refresh_new_count": 0,
+  "last_live_refresh_pages_parsed": 13,
+  "last_live_refresh_search_url": "https://hh.ru/search/vacancy?resume=07687234ff0dd3ea5f0039ed1f47594655564f&from=resumelist&search_field=name&search_field=company_name&search_field=description&enable_snippets=true&forceFiltersSaving=true&items_on_page=100&work_format=REMOTE",
+  "last_live_refresh_message": "Поиск hh.ru завершен: в очереди 1203 вакансий, новых 0.",
+  "analysis_progress_done": 0,
+  "analysis_progress_total": 0,
+  "analysis_progress_title": "",
+  "analysis_progress_strategy": "",
+  "analysis_progress_updated_at": "2026-03-28T16:35:09.623584+00:00",
+  "last_analysis_at": "2026-03-28T16:35:09.610968+00:00",
+  "llm_gate": {},
+  "heuristic_fallback": {
+    "resume_intake": false
+  },
+  "resume_intake_analysis": {
+    "headline": "Теоретический физик, инженер LLM и исследователь NLP/LLMs с опытом внедрения и оценки качества LLM, включая юридические проекты.",
+    "inferred_roles": [
+      "Теоретический физик",
+      "Инженер LLM",
+      "Исследователь NLP/LLMs",
+      "Консультант по ML/AI",
+      "Специалист по бенчмаркингу и метрикам",
+      "Научный консультант",
+      "Специалист в области LegalTech"
+    ],
+    "core_skills": [
+      "Python",
+      "NLP",
+      "LLM",
+      "Внедрение LLM в рабочие процессы",
+      "Оценка качества LLM",
+      "Разработка алгоритмов/математическое моделирование"
+    ],
+    "secondary_skills": [
+      "Математика",
+      "Теоретическая физика",
+      "Аналитическое мышление",
+      "Научное консультирование",
+      "Open-source сотрудничество"
+    ],
+    "domains": [
+      "NLP/LLMs",
+      "Юридические технологии / Российское право",
+      "Научно-исследовательская деятельность / физика",
+      "Бенчмаркинг/метрики"
+    ],
+    "strengths": [
+      "Сильная математическая база и физическое образование",
+      "Глубокие знания NLP/LLMs",
+      "Практический опыт внедрения LLM в рабочие процессы",
+      "Опыт оценки качества LLM и разработки метрик",
+      "Опыт научного консультирования по ML/AI",
+      "Умение объяснять логику работы алгоритмов",
+      "Участие в открытых проектах и бенчмарках"
+    ],
+    "likely_constraints": [
+      "Предпочтение удалённой работе",
+      "Не готов к релокации",
+      "Гибкость по занятости (частичная/полная)",
+      "Готовность работать в юридической/правовой сфере",
+      "Готовность к командировкам иногда"
+    ],
+    "missing_topics": [
+      "Уточнить уровень владения английским языком",
+      "Уточнить технологический стэк (фреймворки: PyTorch/TensorFlow, HuggingFace, LangChain и пр.)",
+      "Определить желаемый формат занятости и зарплатные ожидания",
+      "Статус текущей занятости и доступность/рыночное окно",
+      "Уточнить приоритет отрасли/домены (наука vs бизнес vs юридика)",
+      "Уточнить готовность к релокации (при необходимости)"
+    ],
+    "summary": "Кандидат — теоретический физик с почти 9 годами опыта в NLP/LLMs, имеет практический опыт внедрения LLM в рабочие процессы и оценки качества моделей, участвует в проектах бенчмаркинга и юридических LLM, способен сочетать научный подход с прикладной реализацией. Рассматривает роли теоретического физика/инженера LLM/исследователя в области NLP, предпочитает удалённую работу и открыт к гибридной форме занятости."
+  },
+  "resume_intake_analysis_marker": "{'selected_resume_id': '07687234ff0dd3ea5f0039ed1f47594655564f', 'resume_title': 'Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs', 'resume_summary': 'Статьи: https://www.researchgate.net/profile/Ivan-Litvak https://scholar.google.com/citations?hl=ru&user=sDTrqxIAAAAJ Гитхаб: https://github.com/TryDotAtwo Участвовал в разработке бенчмарка: https://huggingface.co/datasets/lawful-good-project/sud-resh-benchmark Агент для автооткликов на хх: https://github.com/TryDotAtwo/AutoHHKek Препринт с оценками качества метрик для оценки экстракции (проходит рецензирование в топ-10 журнале мира в области юриспруденции): https://vk.cc/cQ0G9b Хорошо владею различными областями математики и физики. Обладаю опытом внедрения LLM в рабочие процессы и оценке качества LLM. Участвовал в работе над различными проектами в качестве научного консультанта, в процессе работы помогал разобраться с логикой работы алгоритмов в части математики, разрабатывал математическую часть алгоритмов. Участвую в проекте реализации юридической большой языковой модели в области российского права. Подлиннее: Физик-теоретик с магой МФТИ, работаю в ОИЯИ (но если есть предложения о', 'preferences': {'full_name': '', 'target_titles': ['Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs', 'LLM Engineer', 'Research Scientist'], 'excluded_companies': ['Пример ок'], 'excluded_keywords': [], 'required_skills': [], 'preferred_skills': ['NLP', 'LLM', 'Python'], 'preferred_locations': ['Удаленка'], 'forbidden_keywords': [], 'salary_min': None, 'remote_only': False, 'allow_relocation': False, 'cover_letter_mode': 'adaptive', 'notes': 'Формат работы: Удаленка'}, 'anamnesis': {'headline': 'Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs', 'summary': 'Мы используем файлы cookie, чтобы обеспечивать правильную работу нашего веб-сайта и анализировать сетевой трафик. Правила использования файлов cookie Понятно Чаты 99+ Резюме и профиль 99+ Отклики 4 Сервисы Карьера Помощь Поиск Москва 99+ Создать резюме Мои резюме / Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs 300 000 ₽ на руки Тип занятости: Подработка, Постоянная работа Формат работы: Удалённо, Гибрид Желательное время в пути до работы: Не дольше 1 часа Командировки: Могу иногда Редактировать Контакты Мобильный телефон +7 989 580-99-76 Электронная почта — предпочитаемый способ связи vanya.litvak@gmail.com Опыт работы: 8 лет 10 месяцев Добавить Объединенный институт ядерных исследований 4 месяца Стажер-исследователь Декабрь 2025 — Март 2026 (4 месяца) Вести работу над НИКР Объединенный институт ядерных исследований 1 год и 8 месяцев Старший лаборант Апрель 2024 — Ноябрь 2025 (1 год и 8 месяцев) В', 'experience_years': 8.8, 'primary_skills': ['NLP', 'LLM', 'Python'], 'secondary_skills': [], 'industries': [], 'achievements': [], 'education': [], 'languages': ['Русский'], 'links': ['https://www.researchgate.net/profile/Ivan-Litvak', 'https://scholar.google.com/citations?hl=ru&user=sDTrqxIAAAAJ', 'https://github.com/TryDotAtwo', 'https://huggingface.co/datasets/lawful-good-project/sud-resh-benchmark', 'https://github.com/TryDotAtwo/AutoHHKek', 'https://vk.cc/cQ0G9b', 'https://hh.ru/resume/07687234ff0dd3ea5f0039ed1f47594655564f', 'https://github.com/TryDotAtwo/Anal_Russia_Klinik2025', 'https://github.com/TryDotAtwo/TgBotWithLLMInterface', 'https://github.com/TryDotAtwo/TgBot-ForEducation', 'https://huggingface.co/TryDotAtwo/ruBERT-ruLaw', 'https://github.com/TryDotAtwo/Agentic_Solve_Math', 'https://тупа.рф', 'https://huggingface.co/datasets/lawful-good-project/sud_resh_evaluated_llms_answers', 'https://github.com/jennyzzt/dgm/tree/main']}, 'extracted': {'headline': 'Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs', 'summary': 'Статьи: https://www.researchgate.net/profile/Ivan-Litvak https://scholar.google.com/citations?hl=ru&user=sDTrqxIAAAAJ Гитхаб: https://github.com/TryDotAtwo Участвовал в разработке бенчмарка: https://huggingface.co/datasets/lawful-good-project/sud-resh-benchmark Агент для автооткликов на хх: https://github.com/TryDotAtwo/AutoHHKek Препринт с оценками качества метрик для оценки экстракции (проходит рецензирование в топ-10 журнале мира в области юриспруденции): https://vk.cc/cQ0G9b Хорошо владею различными областями математики и физики. Обладаю опытом внедрения LLM в рабочие процессы и оценке качества LLM. Участвовал в работе над различными проектами в качестве научного консультанта, в процессе работы помогал разобраться с логикой работы алгоритмов в части математики, разрабатывал математическую часть алгоритмов. Участвую в проекте реализации юридической большой языковой модели в области российского права. Подлиннее: Физик-теоретик с магой МФТИ, работаю в ОИЯИ (но если есть предложения о ', 'experience_years': 8.8, 'skills': ['Python', 'NLP', 'LLM'], 'languages': ['Русский'], 'links': ['https://www.researchgate.net/profile/Ivan-Litvak', 'https://scholar.google.com/citations?hl=ru&user=sDTrqxIAAAAJ', 'https://github.com/TryDotAtwo', 'https://huggingface.co/datasets/lawful-good-project/sud-resh-benchmark', 'https://github.com/TryDotAtwo/AutoHHKek', 'https://vk.cc/cQ0G9b', 'https://hh.ru/resume/07687234ff0dd3ea5f0039ed1f47594655564f', 'https://github.com/TryDotAtwo/Anal_Russia_Klinik2025', 'https://github.com/TryDotAtwo/TgBotWithLLMInterface', 'https://github.com/TryDotAtwo/TgBot-ForEducation', 'https://huggingface.co/TryDotAtwo/ruBERT-ruLaw', 'https://github.com/TryDotAtwo/Agentic_Solve_Math', 'https://тупа.рф', 'https://huggingface.co/datasets/lawful-good-project/sud_resh_evaluated_llms_answers', 'https://github.com/jennyzzt/dgm/tree/main'], 'target_titles': ['Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs', 'LLM Engineer', 'Research Scientist']}}",
+  "resume_intake_analysis_error": "",
+  "last_apply_plan_at": "2026-03-28T16:27:07.954640+00:00",
+  "local_playwright_runtime_ready": true,
+  "local_playwright_runtime_message": "",
+  "local_playwright_runtime_failed_at": "",
+  "apply_daily_bucket": "2026-03-28",
+  "apply_daily_count": 2,
+  "last_apply_submit_at": "2026-03-28T16:28:06.328656+00:00",
+  "last_hh_login_attempt_at": "2026-03-28T17:09:47.989156+00:00",
+  "last_hh_login_status": "failed",
+  "last_hh_login_message": "Page.goto: Timeout 60000ms exceeded.\nCall log:\n  - navigating to \"https://hh.ru/account/login?backurl=%2Fapplicant%2Fresumes\", waiting until \"domcontentloaded\"\n"
+}

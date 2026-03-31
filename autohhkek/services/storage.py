@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import time
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,54 @@ def _write_json(path: Path, payload: Any) -> None:
                 except OSError:
                     pass
     path.write_text(content, encoding="utf-8")
+
+
+def _normalize_account_item(payload: dict[str, Any]) -> dict[str, Any]:
+    item = dict(payload or {})
+    item["account_key"] = sanitize_account_key(str(item.get("account_key") or "default"))
+    resume_ids = sorted({str(value or "").strip() for value in list(item.get("resume_ids") or []) if str(value or "").strip()})
+    item["resume_ids"] = resume_ids
+    item["resume_count"] = int(item.get("resume_count") or len(resume_ids))
+    item["display_name"] = str(item.get("display_name") or "").strip()
+    item["updated_at"] = str(item.get("updated_at") or utc_now_iso())
+    selected_resume_id = str(item.get("selected_resume_id") or "").strip()
+    if selected_resume_id:
+        item["selected_resume_id"] = selected_resume_id
+    return item
+
+
+def _resume_signature(payload: dict[str, Any]) -> str:
+    resume_ids = [str(value or "").strip() for value in list(payload.get("resume_ids") or []) if str(value or "").strip()]
+    return "|".join(sorted(set(resume_ids)))
+
+
+def _merge_account_items(preferred: dict[str, Any], other: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(other)
+    merged.update(preferred)
+    merged["account_key"] = sanitize_account_key(str(preferred.get("account_key") or merged.get("account_key") or "default"))
+    merged["resume_ids"] = sorted(
+        {
+            str(value or "").strip()
+            for value in [*list(other.get("resume_ids") or []), *list(preferred.get("resume_ids") or [])]
+            if str(value or "").strip()
+        }
+    )
+    merged["resume_count"] = len(merged["resume_ids"])
+    for key in ("display_name", "selected_resume_id", "last_login_at"):
+        if not str(merged.get(key) or "").strip():
+            fallback = str(other.get(key) or preferred.get(key) or "").strip()
+            if fallback:
+                merged[key] = fallback
+    merged["updated_at"] = max(str(other.get("updated_at") or ""), str(preferred.get("updated_at") or "")) or utc_now_iso()
+    return merged
+
+
+def _prefer_account_candidate(existing: dict[str, Any], current: dict[str, Any]) -> bool:
+    existing_default = str(existing.get("account_key") or "") == "default"
+    current_default = str(current.get("account_key") or "") == "default"
+    if existing_default != current_default:
+        return not current_default
+    return str(current.get("updated_at") or "") >= str(existing.get("updated_at") or "")
 
 
 def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
@@ -118,29 +167,82 @@ class WorkspaceStore:
     def load_accounts(self) -> list[dict[str, Any]]:
         payload = _read_json(self.paths.accounts_registry_path, [])
         items = list(payload) if isinstance(payload, list) else []
-        normalized: list[dict[str, Any]] = []
-        for item in items:
-            current = dict(item or {})
-            current["account_key"] = sanitize_account_key(str(current.get("account_key") or "default"))
-            normalized.append(current)
-        return normalized
+        normalized = [_normalize_account_item(dict(item or {})) for item in items]
+        deduped: list[dict[str, Any]] = []
+        by_signature: dict[str, int] = {}
+        for item in normalized:
+            signature = _resume_signature(item)
+            if not signature:
+                deduped.append(item)
+                continue
+            index = by_signature.get(signature)
+            if index is None:
+                by_signature[signature] = len(deduped)
+                deduped.append(item)
+                continue
+            existing = deduped[index]
+            if _prefer_account_candidate(existing, item):
+                deduped[index] = _merge_account_items(item, existing)
+            else:
+                deduped[index] = _merge_account_items(existing, item)
+        deduped.sort(key=lambda current: str(current.get("updated_at") or ""), reverse=True)
+        return deduped
 
     def save_account_profile(self, payload: dict[str, Any]) -> dict[str, Any]:
-        item = dict(payload)
-        item["account_key"] = sanitize_account_key(str(item.get("account_key") or "default"))
-        item["updated_at"] = str(item.get("updated_at") or utc_now_iso())
+        item = _normalize_account_item(dict(payload))
         accounts = self.load_accounts()
-        for index, current in enumerate(accounts):
+        merged_item = dict(item)
+        filtered_accounts: list[dict[str, Any]] = []
+        item_signature = _resume_signature(item)
+        for current in accounts:
+            current_signature = _resume_signature(current)
             if current.get("account_key") == item["account_key"]:
-                merged = dict(current)
-                merged.update(item)
-                accounts[index] = merged
-                _write_json(self.paths.accounts_registry_path, accounts)
-                return merged
-        accounts.append(item)
+                merged_item = _merge_account_items(item, current)
+                continue
+            if item_signature and item_signature == current_signature:
+                merged_item = _merge_account_items(merged_item, current)
+                continue
+            filtered_accounts.append(current)
+        filtered_accounts.append(merged_item)
+        accounts = filtered_accounts
         accounts.sort(key=lambda current: str(current.get("updated_at") or ""), reverse=True)
         _write_json(self.paths.accounts_registry_path, accounts)
-        return item
+        return merged_item
+
+    def delete_account_profile(self, account_key: str) -> dict[str, Any]:
+        normalized = sanitize_account_key(account_key)
+        if not normalized:
+            raise RuntimeError("account_key is required.")
+
+        accounts = self.load_accounts()
+        existing = next((item for item in accounts if str(item.get("account_key") or "") == normalized), None)
+        if existing is None:
+            raise RuntimeError("account_key was not found in saved hh accounts.")
+
+        remaining = [item for item in accounts if str(item.get("account_key") or "") != normalized]
+        _write_json(self.paths.accounts_registry_path, remaining)
+
+        target_root = WorkspacePaths(self.project_root, account_key=normalized).runtime_root.resolve()
+        accounts_root = self.paths.accounts_dir.resolve()
+        if target_root.exists():
+            try:
+                target_root.relative_to(accounts_root)
+            except ValueError as exc:
+                raise RuntimeError(f"Refusing to delete account outside runtime root: {target_root}") from exc
+            shutil.rmtree(target_root, ignore_errors=True)
+
+        next_account_key = str(remaining[0].get("account_key") or "default") if remaining else "default"
+        active_changed = normalized == self.account_key or str(self.load_active_account().get("account_key") or "") == normalized
+        if active_changed:
+            self.set_active_account(next_account_key)
+
+        return {
+            "deleted_account_key": normalized,
+            "deleted_display_name": str(existing.get("display_name") or normalized),
+            "next_account_key": next_account_key,
+            "active_changed": active_changed,
+            "remaining_accounts": len(remaining),
+        }
 
     def load_preferences(self) -> UserPreferences | None:
         payload = _read_json(self.paths.preferences_path, None)

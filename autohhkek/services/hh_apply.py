@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from autohhkek.domain.models import utc_now_iso
+from autohhkek.services.playwright_browser import launch_chromium_resilient
 from autohhkek.services.storage import WorkspaceStore
 
 APPLY_SELECTORS = [
@@ -42,6 +43,20 @@ QUESTIONNAIRE_SELECTORS = [
     "button:has-text('Продолжить')",
     "button:has-text('Далее')",
 ]
+
+ALREADY_APPLIED_TOKENS = (
+    "вы уже откликнулись",
+    "отклик отправлен",
+    "вы откликались",
+)
+
+QUESTIONNAIRE_TOKENS = (
+    "анкета",
+    "тест",
+    "опрос",
+    "ответьте на вопросы",
+    "пройдите опрос",
+)
 
 
 def _load_storage_state(state_path: Path) -> dict[str, Any] | None:
@@ -81,17 +96,16 @@ async def _has_questionnaire(page) -> bool:
         except Exception:  # noqa: BLE001
             continue
     text = (await _page_text(page)).lower()
-    return any(token in text for token in ("анкета", "тест", "опрос", "ответьте на вопросы", "пройдите опрос"))
+    return any(token in text for token in QUESTIONNAIRE_TOKENS)
+
+
+def _has_any_token(text: str, tokens: tuple[str, ...]) -> bool:
+    normalized = str(text or "").lower()
+    return any(token in normalized for token in tokens)
 
 
 async def _launch_apply_browser(playwright):
-    try:
-        return await playwright.chromium.launch(headless=False)
-    except Exception:
-        try:
-            return await playwright.chromium.launch(channel="chrome", headless=False)
-        except Exception:
-            return await playwright.chromium.launch(channel="msedge", headless=False)
+    return await launch_chromium_resilient(playwright, headless=False)
 
 
 async def _run_apply_flow(
@@ -123,8 +137,14 @@ async def _run_apply_flow(
         page = await context.new_page()
         try:
             await page.goto(vacancy_url, wait_until="domcontentloaded", timeout=60000)
-            initial_text = (await _page_text(page)).lower()
-            if "вы уже откликнулись" in initial_text or "отклик отправлен" in initial_text:
+            if "login" in page.url:
+                return {
+                    "status": "needs_login",
+                    "message": "hh.ru session expired. Re-login is required before applying.",
+                    "vacancy_url": page.url,
+                }
+            initial_text = await _page_text(page)
+            if _has_any_token(initial_text, ALREADY_APPLIED_TOKENS):
                 return {
                     "status": "already_applied",
                     "message": "По этой вакансии отклик уже был отправлен ранее.",
@@ -144,10 +164,11 @@ async def _run_apply_flow(
                     "message": "Не нашёл кнопку отклика на странице вакансии и не смог подтвердить, что отклик уже отправлен.",
                     "vacancy_url": page.url,
                 }
+
             await apply_button.click()
             await page.wait_for_timeout(1200)
-            after_click_text = (await _page_text(page)).lower()
-            if "вы уже откликнулись" in after_click_text or "отклик отправлен" in after_click_text:
+            after_click_text = await _page_text(page)
+            if _has_any_token(after_click_text, ALREADY_APPLIED_TOKENS):
                 return {
                     "status": "already_applied",
                     "message": "После открытия формы выяснилось, что по вакансии уже есть отклик.",
@@ -207,8 +228,8 @@ async def _run_apply_flow(
 
             await submit_button.click()
             await page.wait_for_timeout(1500)
-            final_text = (await _page_text(page)).lower()
-            if "вы уже откликнулись" in final_text or "отклик отправлен" in final_text or "отклик успешно" in final_text:
+            final_text = await _page_text(page)
+            if _has_any_token(final_text, ALREADY_APPLIED_TOKENS) or "отклик успешно" in final_text.lower():
                 status = "completed_without_cover_letter" if cover_letter_status == "not_available" else "completed"
                 message = (
                     "Отклик отправлен, но hh.ru не дал приложить сопроводительное письмо."
@@ -260,14 +281,29 @@ def run_hh_apply(
             "message": "Не передан URL вакансии.",
         }
     state_path = WorkspaceStore(Path(project_root).resolve()).hh_state_path
-    return asyncio.run(
-        _run_apply_flow(
-            state_path=state_path,
-            vacancy_url=vacancy_url.strip(),
-            resume_id=resume_id.strip(),
-            cover_letter=cover_letter,
+    try:
+        return asyncio.run(
+            _run_apply_flow(
+                state_path=state_path,
+                vacancy_url=vacancy_url.strip(),
+                resume_id=resume_id.strip(),
+                cover_letter=cover_letter,
+            )
         )
-    )
+    except PermissionError as exc:
+        return {
+            "status": "needs_repair",
+            "message": f"Failed to start Playwright browser for hh.ru apply flow: {exc}",
+            "error": str(exc),
+            "reason": "playwright_launch_denied",
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "status": "failed",
+            "message": f"Unexpected hh.ru apply flow error: {exc}",
+            "error": str(exc),
+            "reason": "apply_flow_exception",
+        }
 
 
 def apply_to_vacancy(store, *, vacancy_id: str, cover_letter_override: str = "") -> dict[str, Any]:

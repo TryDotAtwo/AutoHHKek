@@ -109,6 +109,7 @@ class OpenRouterResumeIntakeAgent:
         payload = {
             "resume_title": resume_title,
             "resume_summary": resume_summary,
+            "resume_cleaned_text": str((extracted or {}).get("cleaned_text") or "")[:20000],
             "resume_extracted": extracted,
             "current_preferences": preferences.to_dict(),
             "current_anamnesis": anamnesis.to_dict(),

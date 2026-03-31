@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from autohhkek.services.hh_resume_catalog import HHResumeCatalog, _extract_resume_items
+from autohhkek.services.hh_resume_catalog import HHResumeCatalog, _extract_resume_items, _extract_resume_items_from_dom_payload
 from autohhkek.services.storage import WorkspaceStore
 
 
@@ -23,6 +23,7 @@ def test_resume_catalog_refresh_saves_debug_artifact_on_exception(tmp_path, monk
     store = WorkspaceStore(tmp_path)
     store.hh_state_path.parent.mkdir(parents=True, exist_ok=True)
     store.hh_state_path.write_text('{"cookies": []}', encoding="utf-8")
+    monkeypatch.setattr("autohhkek.services.hh_resume_catalog.ensure_async_subprocess_available", lambda: None)
     monkeypatch.setattr(HHResumeCatalog, "_fetch", _raise_fetch_error)
 
     result = HHResumeCatalog(store).refresh()
@@ -36,6 +37,7 @@ def test_resume_catalog_refresh_returns_debug_artifact_from_fetch_result(tmp_pat
     store = WorkspaceStore(tmp_path)
     store.hh_state_path.parent.mkdir(parents=True, exist_ok=True)
     store.hh_state_path.write_text('{"cookies": []}', encoding="utf-8")
+    monkeypatch.setattr("autohhkek.services.hh_resume_catalog.ensure_async_subprocess_available", lambda: None)
     monkeypatch.setattr(HHResumeCatalog, "_fetch", _return_fetch_payload)
 
     result = HHResumeCatalog(store).refresh()
@@ -54,6 +56,27 @@ def test_extract_resume_items_unescapes_title_and_does_not_shadow_html_module():
             "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f",
             "title": "Theoretical physicist & LLM Engineer",
             "url": "https://hh.ru/resume/07687234ff0dd3ea5f0039ed1f47594655564f",
+        }
+    ]
+
+
+def test_extract_resume_items_from_dom_payload_uses_attribute_fallbacks():
+    items = _extract_resume_items_from_dom_payload(
+        [
+            {
+                "href": "",
+                "title": "",
+                "card_text": "Trainee ML Engineer\n40 000 ₽\nУдалённо",
+                "attrs": ["resume-plain", "/resume/abc123xyz"],
+            }
+        ]
+    )
+
+    assert items == [
+        {
+            "resume_id": "abc123xyz",
+            "title": "Trainee ML Engineer",
+            "url": "https://hh.ru/resume/abc123xyz",
         }
     ]
 
@@ -78,6 +101,7 @@ def test_resume_catalog_refresh_updates_account_profile_resume_count(tmp_path, m
     store = WorkspaceStore(tmp_path, account_key="hh-demo")
     store.hh_state_path.parent.mkdir(parents=True, exist_ok=True)
     store.hh_state_path.write_text('{"cookies": []}', encoding="utf-8")
+    monkeypatch.setattr("autohhkek.services.hh_resume_catalog.ensure_async_subprocess_available", lambda: None)
     monkeypatch.setattr(HHResumeCatalog, "_fetch", _return_resume_payload)
 
     HHResumeCatalog(store).refresh()

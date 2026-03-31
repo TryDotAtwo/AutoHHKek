@@ -1,9 +1,13 @@
 import pytest
 
 from autohhkek.app.commands import (
+    _payload_from_open_intake,
+    confirm_intake_rules,
     import_rules_text,
     run_analyze,
+    run_apply_submit,
     run_intake,
+    run_intake_from_text,
     run_plan_filters,
     run_plan_apply,
     run_plan_repair,
@@ -39,6 +43,52 @@ def test_run_plan_repair_saves_repair_task(tmp_path):
 
     assert result["action"] == "repair"
     assert store.load_repair_tasks()[0]["action"] == "click_apply_button"
+
+
+def test_run_apply_submit_retries_after_hh_relogin_and_enqueues_repair(tmp_path, monkeypatch):
+    store = WorkspaceStore(tmp_path)
+    store.save_selected_resume_id("resume-1")
+
+    responses = iter(
+        [
+            {
+                "vacancy_id": "vac-1",
+                "result": {"status": "needs_login", "message": "login expired"},
+            },
+            {
+                "vacancy_id": "vac-1",
+                "result": {"status": "needs_repair", "message": "selector mismatch"},
+            },
+        ]
+    )
+    monkeypatch.setattr("autohhkek.app.commands.apply_to_vacancy", lambda *args, **kwargs: next(responses))
+    monkeypatch.setattr(
+        "autohhkek.app.commands.run_hh_login",
+        lambda project_root: {"status": "completed", "message": "relogged"},
+    )
+
+    repair_calls = []
+
+    def fake_run_plan_repair(store, *, action, payload, error, run_agent=False):
+        repair_calls.append({"action": action, "payload": payload, "error": error, "run_agent": run_agent})
+        return {"action": "repair", "payload": {"status": "queued"}}
+
+    monkeypatch.setattr("autohhkek.app.commands.run_plan_repair", fake_run_plan_repair)
+    monkeypatch.setattr("autohhkek.app.commands._bump_apply_counter", lambda store, count: None)
+
+    result = run_apply_submit(store, vacancy_id="vac-1", cover_letter="hello")
+
+    assert result["payload"]["result"]["status"] == "needs_repair"
+    assert result["relogin_result"]["status"] == "completed"
+    assert result["repair"]["action"] == "repair"
+    assert repair_calls == [
+        {
+            "action": "apply_submit",
+            "payload": {"vacancy_id": "vac-1", "result": {"status": "needs_repair", "message": "selector mismatch"}},
+            "error": "needs_repair",
+            "run_agent": True,
+        }
+    ]
 
 
 def test_run_intake_creates_profile_data(tmp_path):
@@ -239,3 +289,65 @@ def test_run_resume_requires_intake(tmp_path):
 
     with pytest.raises(RuntimeError, match="intake"):
         run_resume(store)
+
+
+def test_run_intake_from_text_extracts_core_user_constraints(tmp_path):
+    store = WorkspaceStore(tmp_path)
+
+    result = run_intake_from_text(
+        store,
+        raw_text=(
+            "Ищу роли LLM Engineer, NLP Engineer, Research Scientist. "
+            "Только remote, без переезда. "
+            "Зарплата от 350000. "
+            "Не хочу госуху, университеты и CV only. "
+            "Must-have: Python, NLP, LLM, Transformers. "
+            "Интересны AI infra и applied research."
+        ),
+    )
+
+    prefs = store.load_preferences()
+    anamnesis = store.load_anamnesis()
+
+    assert result["action"] == "intake"
+    assert prefs.remote_only is True
+    assert prefs.salary_min == 350000
+    assert "LLM Engineer" in prefs.target_titles
+    assert "Python" in prefs.required_skills
+    assert any("гос" in item.lower() for item in prefs.forbidden_keywords)
+    assert any("Applied research" == item or "AI infra" == item for item in anamnesis.industries)
+
+
+def test_confirm_intake_rules_is_required_for_readiness(tmp_path, monkeypatch):
+    store = WorkspaceStore(tmp_path)
+
+    run_intake(
+        store,
+        payload={
+            "full_name": "Ivan Litvak",
+            "headline": "LLM Engineer",
+            "summary": "Python, NLP, agents",
+            "experience_years": 5,
+            "target_titles": ["LLM Engineer"],
+            "primary_skills": ["Python", "LLM"],
+            "required_skills": ["Python"],
+            "preferred_locations": ["Remote"],
+            "remote_only": True,
+            "excluded_companies": ["госуха"],
+            "forbidden_keywords": ["университет"],
+        },
+    )
+    store.update_dashboard_state({"intake_dialog_completed": True, "intake_confirmed": False})
+
+    with pytest.raises(RuntimeError, match="intake"):
+        run_analyze(store, limit=10, interactive=False)
+
+    confirm_intake_rules(store)
+    store.save_selection_rules("target_titles: LLM Engineer")
+
+    monkeypatch.setattr(
+        "autohhkek.app.commands.ensure_hh_context",
+        lambda store, auto_login=True: {"status": "ready", "message": "hh context ready", "selected_resume_id": "resume-1"},
+    )
+    result = run_analyze(store, limit=1, interactive=False)
+    assert result["status"] in {"completed", "blocked"}

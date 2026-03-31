@@ -10,8 +10,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from autohhkek.domain.models import utc_now_iso
+from autohhkek.services.hh_resume_sync import HHResumeProfileSync
 from autohhkek.app.commands import (
     begin_intake_dialog,
+    restart_intake_dialog,
     build_detailed_intake_prompt,
     build_rules_from_profile,
     choose_heuristic_fallback,
@@ -20,6 +22,7 @@ from autohhkek.app.commands import (
     import_rules_text,
     postpone_until_llm_available,
     run_analyze,
+    run_refresh_vacancies,
     run_apply_batch,
     run_apply_submit,
     run_intake,
@@ -31,6 +34,7 @@ from autohhkek.app.commands import (
     run_resume,
     run_selected_mode,
     save_cover_letter_override,
+    delete_hh_account,
     select_hh_account,
     select_resume_for_search,
     update_vacancy_feedback,
@@ -39,6 +43,7 @@ from autohhkek.app.commands import (
 from autohhkek.services.hh_login import run_hh_login
 from autohhkek.services.hh_resume_catalog import HHResumeCatalog
 from autohhkek.services.chat_rule_parser import parse_rule_request, patch_to_markdown
+from autohhkek.services.openrouter_runtime import OpenRouterAppConfig
 from autohhkek.services.storage import WorkspaceStore
 
 from .snapshot import build_dashboard_snapshot
@@ -69,7 +74,63 @@ def _asset_response(path: Path) -> tuple[bytes, str]:
 
 
 def _normalize_text(value: str) -> str:
-    return re.sub(r"\s+", " ", (value or "").strip()).lower()
+    return re.sub(r"\s+", " ", _repair_mojibake_text((value or "").strip())).lower()
+
+
+def _repair_mojibake_text(value: str) -> str:
+    current = str(value or "")
+    def _marker_count(text: str) -> int:
+        markers = 0
+        for first, second in zip(text, text[1:]):
+            if first in {"Р", "С"} and second and second not in "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя \t\r\n":
+                if ord(second) > 127:
+                    markers += 1
+            if first in {"Ð", "Ñ"} and second and ord(second) > 127:
+                markers += 1
+        markers += text.count("�") * 3
+        markers += text.count("пїЅ") * 3
+        markers += text.count("\\x") * 2
+        markers += text.count("07@") * 2
+        return markers
+
+    if _marker_count(current) < 2:
+        return current
+    for codec in ("cp1251", "latin1"):
+        for _ in range(2):
+            try:
+                candidate = current.encode(codec, errors="ignore").decode("utf-8", errors="ignore")
+            except UnicodeError:
+                break
+            if not candidate or candidate == current:
+                break
+            if _marker_count(candidate) >= _marker_count(current):
+                break
+            current = candidate
+    return current
+
+
+def _repair_payload_strings(value):
+    if isinstance(value, str):
+        return _repair_mojibake_text(value)
+    if isinstance(value, list):
+        return [_repair_payload_strings(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_repair_payload_strings(item) for item in value)
+    if isinstance(value, dict):
+        return {key: _repair_payload_strings(item) for key, item in value.items()}
+    return value
+
+
+def _normalize_patterns(patterns: tuple[str, ...] | list[str] | set[str]) -> tuple[str, ...]:
+    return tuple(_normalize_text(item) for item in patterns)
+
+
+def _contains_any(normalized: str, patterns) -> bool:
+    return any(pattern and pattern in normalized for pattern in _normalize_patterns(patterns))
+
+
+def _equals_any(normalized: str, patterns) -> bool:
+    return normalized in set(_normalize_patterns(patterns))
 
 
 def _chat_response(message: str, *, action: str = "", details: dict[str, object] | None = None) -> dict[str, object]:
@@ -78,6 +139,47 @@ def _chat_response(message: str, *, action: str = "", details: dict[str, object]
         "action": action,
         "details": details or {},
     }
+
+
+def _openrouter_chat_reply(store: WorkspaceStore, *, text: str, selected_vacancy_id: str = "") -> dict[str, object] | None:
+    config = OpenRouterAppConfig.from_env()
+    if not config.is_available():
+        return None
+    settings = store.load_runtime_settings()
+    config.model = str(getattr(settings, "openrouter_model", "") or config.model)
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(
+            api_key=config.api_key,
+            base_url=config.base_url,
+            default_headers={
+                **({"HTTP-Referer": config.site_url} if config.site_url else {}),
+                **({"X-OpenRouter-Title": config.app_name} if config.app_name else {}),
+            } or None,
+            timeout=config.timeout_sec,
+        )
+        selected_resume_id = store.load_selected_resume_id()
+        resume_items = list(store.load_hh_resumes())
+        selected_resume = next((item for item in resume_items if str(item.get("resume_id") or "") == selected_resume_id), None)
+        prompt = (
+            "Ты ассистент в дашборде AutoHHKek. "
+            "Отвечай по-русски, коротко и по делу. "
+            "Если пользователь пишет короткую реплику вроде приветствия или проверки связи, ответь естественно и попроси сформулировать задачу. "
+            "Не придумывай, что уже запустил repair, анализ или отклик, если этого не было. "
+            "Если из сообщения не следует конкретная команда, не запускай фоновые действия сам. "
+            f"Текущий selected_resume_id: {selected_resume_id or 'не выбран'}. "
+            f"Текущий selected_resume_title: {str((selected_resume or {}).get('title') or '')[:240] or 'не выбрано'}. "
+            f"Текущий selected_vacancy_id: {selected_vacancy_id or 'не выбрана'}.\n\n"
+            f"Сообщение пользователя: {text.strip()}"
+        )
+        response = client.responses.create(model=config.model, input=prompt)
+        message = str(getattr(response, "output_text", "") or "").strip()
+        if not message:
+            return None
+        return {"message": message, "backend": "openrouter", "model": config.model}
+    except Exception as exc:  # noqa: BLE001
+        return {"message": "", "backend": "openrouter", "model": config.model, "error": str(exc)}
 
 
 def _build_rules_proposal(*, current_rules: str, markdown: str, filename: str = "chat_rules.md") -> dict[str, object]:
@@ -104,13 +206,13 @@ def _build_rules_proposal(*, current_rules: str, markdown: str, filename: str = 
 
 def _extract_rule_request_payload(text: str) -> tuple[str, str]:
     normalized = _normalize_text(text)
-    prefixes = (
-        "РґРѕР±Р°РІСЊ РїСЂР°РІРёР»Рѕ:",
-        "РѕР±РЅРѕРІРё РїСЂР°РІРёР»Р°:",
-        "РїСЂР°РІРёР»Р°:",
-        "РїСЂРµРґР»РѕР¶Рё РїСЂР°РІРёР»Рѕ:",
+    canonical_prefixes = (
+        "добавь правило:",
+        "обнови правила:",
+        "правила:",
+        "предложи правило:",
     )
-    for prefix in prefixes:
+    for prefix in canonical_prefixes:
         if normalized.startswith(prefix):
             return prefix, text.split(":", 1)[1].strip() if ":" in text else ""
     return "", ""
@@ -137,6 +239,18 @@ def _find_resume_reference(store: WorkspaceStore, text: str) -> tuple[str, str]:
 
 
 def _should_auto_bootstrap(snapshot: dict[str, object], hh_login_status: dict[str, object], bootstrap_status: dict[str, object]) -> bool:
+    if bool(hh_login_status.get("running")) or bool(bootstrap_status.get("running")):
+        return False
+    if not bool((snapshot.get("intake") or {}).get("ready")):
+        return False
+    if not bool((snapshot.get("hh_login") or {}).get("state_file_exists")):
+        return False
+    profile_sync = dict(snapshot.get("profile_sync") or {})
+    if str(profile_sync.get("status") or "") not in {"updated", "no_changes"}:
+        return True
+    hh_resumes = list(snapshot.get("hh_resumes") or [])
+    if len(hh_resumes) == 1 and not str(snapshot.get("selected_resume_id") or "").strip():
+        return True
     return False
 
 
@@ -152,30 +266,41 @@ def _run_first_bootstrap(
         {
             "running": True,
             "status": "running",
-            "message": "РџСЂРѕРІРµСЂСЏСЋ Р»РѕРіРёРЅ, СЂРµР·СЋРјРµ Рё РїСЂР°РІРёР»Р° РїРµСЂРµРґ РїРµСЂРІС‹Рј Р·Р°РїСѓСЃРєРѕРј.",
+            "message": "Проверяю логин, резюме и правила перед первым запуском.",
             "started_at": utc_now_iso(),
             "finished_at": "",
         }
     )
     try:
-        hh_login_status.update(
-            {
-                "running": True,
-                "status": "running",
-                "message": "РћС‚РєСЂС‹РІР°СЋ hh.ru РґР»СЏ РІС…РѕРґР°.",
-                "started_at": utc_now_iso(),
-                "finished_at": "",
-            }
-        )
-        login_result = run_hh_login(project_root)
-        hh_login_status.update(
-            {
-                "running": False,
-                "status": str(login_result.get("status") or "failed"),
-                "message": str(login_result.get("message") or ""),
-                "finished_at": utc_now_iso(),
-            }
-        )
+        if store.hh_state_path.exists():
+            login_result = {"status": "completed", "message": "Сессия hh.ru уже активна, повторный логин не нужен."}
+            hh_login_status.update(
+                {
+                    "running": False,
+                    "status": "completed",
+                    "message": str(login_result.get("message") or ""),
+                    "finished_at": utc_now_iso(),
+                }
+            )
+        else:
+            hh_login_status.update(
+                {
+                    "running": True,
+                    "status": "running",
+                    "message": "Открываю hh.ru для входа.",
+                    "started_at": utc_now_iso(),
+                    "finished_at": "",
+                }
+            )
+            login_result = run_hh_login(project_root)
+            hh_login_status.update(
+                {
+                    "running": False,
+                    "status": str(login_result.get("status") or "failed"),
+                    "message": str(login_result.get("message") or ""),
+                    "finished_at": utc_now_iso(),
+                }
+            )
 
         resumes_payload = dict((login_result.get("resumes") or {}))
         resume_items = list(resumes_payload.get("items") or [])
@@ -191,10 +316,10 @@ def _run_first_bootstrap(
         if store.load_preferences() and store.load_anamnesis():
             if selected_resume_id:
                 resume_result = run_resume(store)
-                bootstrap_status["message"] = str(resume_result.get("message") or "Р РµР·СЋРјРµ Рё РїСЂР°РІРёР»Р° РѕР±РЅРѕРІР»РµРЅС‹.")
+                bootstrap_status["message"] = str(resume_result.get("message") or "Резюме и правила обновлены.")
             else:
                 rules_result = build_rules_from_profile(store)
-                bootstrap_status["message"] = "РџСЂР°РІРёР»Р° РѕР±РЅРѕРІР»РµРЅС‹. Р”Р»СЏ РѕС‚РєР»РёРєРѕРІ РЅСѓР¶РЅРѕ РІС‹Р±СЂР°С‚СЊ СЂРµР·СЋРјРµ."
+                bootstrap_status["message"] = "Правила обновлены. Для откликов нужно выбрать резюме."
                 bootstrap_status["details"] = rules_result
 
         bootstrap_status.update(
@@ -253,14 +378,13 @@ def _handle_chat_command(
 ) -> dict[str, object]:
     normalized = _normalize_text(text)
     if not normalized:
-        return _chat_response("РџСѓСЃС‚РѕРµ СЃРѕРѕР±С‰РµРЅРёРµ. РќР°РїРёС€Рё Р·Р°РґР°С‡Сѓ РёР»Рё РёР·РјРµРЅРµРЅРёРµ РїСЂР°РІРёР».")
+        return _chat_response("Пустое сообщение. Напиши задачу или изменение правил.")
 
-    if "РїРѕРјРѕС‰" in normalized or normalized in {"help", "?"}:
+    if "помощ" in normalized or normalized in {"help", "?"}:
         return _chat_response(
-            "Р§РµСЂРµР· С‡Р°С‚ РјРѕР¶РЅРѕ СѓРїСЂР°РІР»СЏС‚СЊ РїРѕРёСЃРєРѕРј, Р»РѕРіРёРЅРѕРј РІ hh.ru, СЂРµР·СЋРјРµ, РїСЂР°РІРёР»Р°РјРё, Р°РЅР°Р»РёР·РѕРј РІР°РєР°РЅСЃРёР№ Рё РѕС‚РєР»РёРєРѕРј.",
+            "Через чат можно управлять поиском, логином в hh.ru, резюме, правилами, анализом вакансий и откликом.",
             action="help",
         )
-
 
     if any(token in normalized for token in ("\u0438\u043d\u0442\u0435\u0439\u043a", "\u043e\u043f\u0440\u043e\u0441", "\u0430\u043d\u043a\u0435\u0442\u0430", "\u043e\u043d\u0431\u043e\u0440\u0434\u0438\u043d\u0433")) and any(
         token in normalized for token in ("\u043d\u0430\u0447", "\u0441\u0442\u0430\u0440\u0442", "\u043f\u043e\u043a\u0430\u0436\u0438", "\u0448\u0430\u0431\u043b\u043e\u043d", "\u0432\u043e\u043f\u0440\u043e\u0441")
@@ -279,25 +403,25 @@ def _handle_chat_command(
         result = run_intake_from_text(store, raw_text=payload_text.strip(), source_name="chat")
         return _chat_response(str(result.get("message") or "\u0418\u043d\u0442\u0435\u0439\u043a \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d."), action="intake", details=result)
 
-    if lowered_text in {"подтвердить правила", "подтверждаю правила", "подтвердить intake", "ok, запускай"}:
+    if lowered_text in {"подтверди интейк", "подтверди опрос", "confirm intake", "ok, дальше"}:
         result = confirm_intake_rules(store)
-        return _chat_response(str(result.get("message") or "Правила подтверждены."), action="confirm-intake", details=result)
+        return _chat_response(str(result.get("message") or "Интейк подтверждён."), action="confirm-intake", details=result)
 
-    if lowered_text in {"РѕС‚РјРµРЅР° РѕРїСЂРѕСЃР°", "СЃР±СЂРѕСЃРёС‚СЊ РѕРїСЂРѕСЃ", "РїСЂРµСЂРІР°С‚СЊ РѕРїСЂРѕСЃ"}:
+    if lowered_text in {"отмена опроса", "сбросить опрос", "прервать опрос"}:
         store.update_dashboard_state({"intake_dialog": {}, "intake_dialog_completed": False, "intake_confirmed": False, "intake_confirmed_at": ""})
-        return _chat_response("РћРїСЂРѕСЃ СЃР±СЂРѕС€РµРЅ. РњРѕР¶РЅРѕ РЅР°С‡Р°С‚СЊ Р·Р°РЅРѕРІРѕ РєРѕРјР°РЅРґРѕР№ В«РЅР°С‡Р°С‚СЊ РѕРїСЂРѕСЃВ».", action="intake-dialog")
+        return _chat_response("Опрос сброшен. Можно начать заново командой «начать опрос».", action="intake-dialog")
 
     if (store.load_dashboard_state().get("intake_dialog") or {}).get("active"):
         result = continue_intake_dialog(store, message=text)
-        return _chat_response(str(result.get("message") or "РџСЂРѕРґРѕР»Р¶Р°СЋ РѕРїСЂРѕСЃ."), action="intake-dialog", details=result)
+        return _chat_response(str(result.get("message") or "Продолжаю опрос."), action="intake-dialog", details=result)
 
-    if ("Р»РѕРіРёРЅ" in normalized and "hh" in normalized) or normalized.startswith("РІРѕР№С‚Рё hh") or normalized.startswith("РІРѕР№С‚Рё РІ hh") or normalized in {"РІРѕР№С‚Рё", "РІРѕР№С‚Рё РІ hh.ru", "РІРѕР№С‚Рё РІ С…С…", "РІРѕР№С‚Рё С…С…", "РІ С…С…"}:
+    if ("логин" in normalized and "hh" in normalized) or normalized.startswith("войти hh") or normalized.startswith("войти в hh") or normalized in {"войти", "войти в hh.ru", "войти в хх", "войти хх", "в хх"}:
         if not hh_login_status.get("running"):
             hh_login_status.update(
                 {
                     "running": True,
                     "status": "running",
-                    "message": "РћС‚РєСЂС‹РІР°СЋ hh.ru РґР»СЏ РІС…РѕРґР°.",
+                    "message": "Открываю hh.ru для входа.",
                     "started_at": utc_now_iso(),
                     "finished_at": "",
                 }
@@ -318,59 +442,59 @@ def _handle_chat_command(
                 )
 
             threading.Thread(target=_worker, daemon=True).start()
-        return _chat_response("РћС‚РєСЂС‹Р» РѕРєРЅРѕ РІС…РѕРґР° РІ hh.ru. РџРѕСЃР»Рµ РІС…РѕРґР° РїСЂРѕРґРѕР»Р¶Сѓ СЂР°Р±РѕС‚Сѓ СЃ СЂРµР·СЋРјРµ Рё Р°РЅР°Р»РёР·РѕРј.", action="hh-login")
+        return _chat_response("Открыл окно входа в hh.ru. После входа продолжу работу с резюме и анализом.", action="hh-login")
 
-    if "РїРѕРґС‚СЏРЅРё СЂРµР·СЋРјРµ" in normalized or "РѕР±РЅРѕРІРё СЂРµР·СЋРјРµ" in normalized or "СЃРїРёСЃРѕРє СЂРµР·СЋРјРµ" in normalized:
+    if "подтяни резюме" in normalized or "обнови резюме" in normalized or "список резюме" in normalized:
         payload = HHResumeCatalog(store).refresh()
         items = list(payload.get("items") or [])
         if not items:
-            return _chat_response("Р РµР·СЋРјРµ РЅР° hh.ru РїРѕРєР° РЅРµ РЅР°Р№РґРµРЅС‹. РџСЂРѕРІРµСЂСЊ РІС…РѕРґ РІ hh.ru Рё СЃРїРёСЃРѕРє СЂРµР·СЋРјРµ.", action="hh-resumes", details=payload)
+            return _chat_response("Резюме на hh.ru пока не найдены. Проверь вход в hh.ru и список резюме.", action="hh-resumes", details=payload)
         return _chat_response(
-            f"РџРѕРґС‚СЏРЅСѓР» {len(items)} СЂРµР·СЋРјРµ СЃ hh.ru. Р•СЃР»Рё РёС… РЅРµСЃРєРѕР»СЊРєРѕ, РІС‹Р±РµСЂРё РЅСѓР¶РЅРѕРµ СЂРµР·СЋРјРµ РІ РёРЅС‚РµСЂС„РµР№СЃРµ РёР»Рё С‡РµСЂРµР· С‡Р°С‚.",
+            f"Подтянул {len(items)} резюме с hh.ru. Если их несколько, выбери нужное резюме в интерфейсе или через чат.",
             action="hh-resumes",
             details=payload,
         )
 
-    if normalized.startswith("РІС‹Р±РµСЂРё СЂРµР·СЋРјРµ") or normalized.startswith("СЂРµР·СЋРјРµ "):
+    if normalized.startswith("выбери резюме") or normalized.startswith("резюме "):
         resume_id, title = _find_resume_reference(store, normalized)
         if not resume_id:
-            return _chat_response("РќРµ СЃРјРѕРі РѕРїСЂРµРґРµР»РёС‚СЊ СЂРµР·СЋРјРµ. РЎРЅР°С‡Р°Р»Р° РѕР±РЅРѕРІРё СЃРїРёСЃРѕРє СЂРµР·СЋРјРµ, Р·Р°С‚РµРј РІС‹Р±РµСЂРё РЅСѓР¶РЅРѕРµ.", action="select-resume")
+            return _chat_response("Не смог определить резюме. Сначала обнови список резюме, затем выбери нужное.", action="select-resume")
         result = select_resume_for_search(store, resume_id=resume_id)
-        return _chat_response(f"Р’С‹Р±СЂР°Р» СЂРµР·СЋРјРµ РґР»СЏ РїРѕРёСЃРєР°: {title or resume_id}.", action="select-resume", details=result)
+        return _chat_response(f"Выбрал резюме для поиска: {title or resume_id}.", action="select-resume", details=result)
 
-    if "backend openrouter" in normalized or "РІС‹Р±РµСЂРё openrouter" in normalized:
+    if "backend openrouter" in normalized or "выбери openrouter" in normalized:
         result = update_runtime_settings(store, {"llm_backend": "openrouter", "mode_selected": True})
-        return _chat_response(f"Backend РїРµСЂРµРєР»СЋС‡С‘РЅ РЅР° OpenRouter. РњРѕРґРµР»СЊ: {result.get('openrouter_model')}.", action="runtime-settings", details=result)
-    if "backend openai" in normalized or "РІС‹Р±РµСЂРё openai" in normalized:
+        return _chat_response(f"Backend переключён на OpenRouter. Модель: {result.get('openrouter_model')}.", action="runtime-settings", details=result)
+    if "backend openai" in normalized or "выбери openai" in normalized:
         result = update_runtime_settings(store, {"llm_backend": "openai", "mode_selected": True})
-        return _chat_response(f"Backend РїРµСЂРµРєР»СЋС‡С‘РЅ РЅР° OpenAI. РњРѕРґРµР»СЊ: {result.get('openai_model')}.", action="runtime-settings", details=result)
-    if "backend g4f" in normalized or "РІС‹Р±РµСЂРё g4f" in normalized:
+        return _chat_response(f"Backend переключён на OpenAI. Модель: {result.get('openai_model')}.", action="runtime-settings", details=result)
+    if "backend g4f" in normalized or "выбери g4f" in normalized:
         result = update_runtime_settings(store, {"llm_backend": "g4f", "mode_selected": True})
         return _chat_response(
-            f"Backend РїРµСЂРµРєР»СЋС‡С‘РЅ РЅР° g4f. Р¦РµР»СЊ: {result.get('g4f_model')} / {result.get('g4f_provider') or 'auto'}.",
+            f"Backend переключён на g4f. Цель: {result.get('g4f_model')} / {result.get('g4f_provider') or 'auto'}.",
             action="runtime-settings",
             details=result,
         )
 
-    mode_match = re.search(r"\bСЂРµР¶РёРј\s+(analyze|apply_plan|repair|full_pipeline)\b", normalized)
+    mode_match = re.search(r"\bрежим\s+(analyze|apply_plan|repair|full_pipeline)\b", normalized)
     if mode_match:
         mode = mode_match.group(1)
         result = update_runtime_settings(store, {"dashboard_mode": mode, "mode_selected": True})
-        return _chat_response(f"Р РµР¶РёРј РїРµСЂРµРєР»СЋС‡С‘РЅ РЅР° {mode}.", action="runtime-settings", details=result)
+        return _chat_response(f"Режим переключён на {mode}.", action="runtime-settings", details=result)
 
-    if normalized.startswith("РјРѕРґРµР»СЊ openrouter ") or normalized.startswith("openrouter model "):
+    if normalized.startswith("модель openrouter ") or normalized.startswith("openrouter model "):
         model = text.split(" ", 2)[-1].strip()
         result = update_runtime_settings(store, {"openrouter_model": model})
-        return _chat_response(f"РњРѕРґРµР»СЊ OpenRouter РѕР±РЅРѕРІР»РµРЅР°: {result.get('openrouter_model')}.", action="runtime-settings", details=result)
+        return _chat_response(f"Модель OpenRouter обновлена: {result.get('openrouter_model')}.", action="runtime-settings", details=result)
 
-    if "РїРµСЂРµСЃРѕР±РµСЂРё РїСЂР°РІРёР»Р°" in normalized or "СЃРіРµРЅРµСЂРёСЂСѓР№ РїСЂР°РІРёР»Р°" in normalized:
+    if "пересобери правила" in normalized or "сгенерируй правила" in normalized:
         result = build_rules_from_profile(store)
         pending_rule_edit.clear()
-        return _chat_response("Р‘Р°Р·РѕРІС‹Рµ РїСЂР°РІРёР»Р° РїРµСЂРµСЃРѕР±СЂР°РЅС‹ РёР· С‚РµРєСѓС‰РµРіРѕ РїСЂРѕС„РёР»СЏ Рё Р°РЅР°РјРЅРµР·Р°.", action="build-rules", details=result)
+        return _chat_response("Базовые правила пересобраны из текущего профиля и анамнеза.", action="build-rules", details=result)
 
-    if normalized in {"РїРѕРґС‚РІРµСЂРґРё РїСЂР°РІРёР»Р°", "РїСЂРёРјРµРЅРё РїСЂР°РІРёР»Р°", "СЃРѕС…СЂР°РЅРё РїСЂР°РІРёР»Р°"}:
+    if normalized in {"подтверди правила", "примени правила", "сохрани правила"}:
         if not pending_rule_edit:
-            return _chat_response("РќРµС‚ РЅРµРїРѕРґС‚РІРµСЂР¶РґС‘РЅРЅРѕРіРѕ РёР·РјРµРЅРµРЅРёСЏ РїСЂР°РІРёР».", action="import-rules")
+            return _chat_response("Нет неподтверждённого изменения правил.", action="import-rules")
         result = import_rules_text(
             store,
             filename=str(pending_rule_edit.get("filename") or "chat_rules.md"),
@@ -379,36 +503,36 @@ def _handle_chat_command(
         applied_preview = str(pending_rule_edit.get("diff") or "")
         pending_rule_edit.clear()
         return _chat_response(
-            "РР·РјРµРЅРµРЅРёРµ РїСЂР°РІРёР» РїСЂРёРјРµРЅРµРЅРѕ. Р”Р»СЏ РїРµСЂРµСЃС‡С‘С‚Р° РІР°РєР°РЅСЃРёР№ С‚РµРїРµСЂСЊ Р·Р°РїСѓСЃС‚Рё Analyze.",
+            "Изменение правил применено. Для пересчёта вакансий теперь запусти Analyze.",
             action="import-rules",
             details={**result, "diff": applied_preview},
         )
 
-    if normalized in {"РѕС‚РјРµРЅРё РїСЂР°РІРёР»Р°", "РѕС‚РєР°С‚Рё РїСЂР°РІРёР»Р°", "cancel rules"}:
+    if _equals_any(normalized, {"отмени правила", "откати правила", "cancel rules"}):
         if not pending_rule_edit:
-            return _chat_response("РќРµС‚ РЅРµРїРѕРґС‚РІРµСЂР¶РґС‘РЅРЅРѕРіРѕ РёР·РјРµРЅРµРЅРёСЏ РїСЂР°РІРёР».", action="import-rules")
+            return _chat_response("Нет неподтверждённого изменения правил.", action="import-rules")
         pending_rule_edit.clear()
-        return _chat_response("Р§РµСЂРЅРѕРІРёРє РёР·РјРµРЅРµРЅРёСЏ РїСЂР°РІРёР» РѕС‚РјРµРЅС‘РЅ.", action="import-rules")
+        return _chat_response("Черновик изменения правил отменён.", action="import-rules")
 
-    if "С‡РµСЂРЅРѕРІРёРє РїСЂР°РІРёР»" in normalized or "РїРѕРєР°Р¶Рё diff РїСЂР°РІРёР»" in normalized or "РїРѕРєР°Р¶Рё С‡РµСЂРЅРѕРІРёРє РїСЂР°РІРёР»" in normalized:
+    if _contains_any(normalized, ("черновик правил", "покажи diff правил", "покажи черновик правил")):
         if not pending_rule_edit:
-            return _chat_response("Р§РµСЂРЅРѕРІРёРєР° РёР·РјРµРЅРµРЅРёСЏ РїСЂР°РІРёР» РЅРµС‚.", action="show-rules")
+            return _chat_response("Черновика изменения правил нет.", action="show-rules")
         return _chat_response(
-            "РќРёР¶Рµ С‡РµСЂРЅРѕРІРёРє РёР·РјРµРЅРµРЅРёСЏ РїСЂР°РІРёР». РќР°РїРёС€Рё В«РїРѕРґС‚РІРµСЂРґРё РїСЂР°РІРёР»Р°В» РёР»Рё В«РѕС‚РјРµРЅРё РїСЂР°РІРёР»Р°В».",
+            "Ниже черновик изменения правил. Напиши «подтверди правила» или «отмени правила».",
             action="show-rules",
             details=dict(pending_rule_edit),
         )
 
     prefix, raw_request = _extract_rule_request_payload(text)
     natural_rule_request = (
-        any(token in normalized for token in ("РЅРµ С…РѕС‡Сѓ", "РїСЂРµРґРїРѕС‡РёС‚Р°СЋ", "С‚РѕР»СЊРєРѕ remote", "С‚РѕР»СЊРєРѕ СѓРґР°Р»", "Р·Р°СЂРїР»Р°С‚Р° РѕС‚", "РёСЃРєР»СЋС‡Рё РєРѕРјРїР°РЅРёСЋ", "Р±РµР· "))
+        _contains_any(normalized, ("не хочу", "предпочитаю", "только remote", "только удал", "зарплата от", "исключи компанию", "без "))
         and not prefix
     )
     if prefix or natural_rule_request:
         if not raw_request:
             raw_request = text.strip()
         if not raw_request:
-            return _chat_response("РџРѕСЃР»Рµ РєРѕРјР°РЅРґС‹ РЅСѓР¶РµРЅ С‚РµРєСЃС‚ РїСЂР°РІРёР»Р°.", action="import-rules")
+            return _chat_response("После команды нужен текст правила.", action="import-rules")
         markdown = raw_request
         if ":" not in raw_request:
             patch = parse_rule_request(raw_request)
@@ -419,27 +543,27 @@ def _handle_chat_command(
         pending_rule_edit.clear()
         pending_rule_edit.update(proposal)
         return _chat_response(
-            "РџРѕРґРіРѕС‚РѕРІРёР» РёР·РјРµРЅРµРЅРёРµ РїСЂР°РІРёР». РџРѕСЃРјРѕС‚СЂРё diff Рё РЅР°РїРёС€Рё В«РїРѕРґС‚РІРµСЂРґРё РїСЂР°РІРёР»Р°В» РёР»Рё В«РѕС‚РјРµРЅРё РїСЂР°РІРёР»Р°В».",
+            "Подготовил изменение правил. Посмотри diff и напиши «подтверди правила» или «отмени правила».",
             action="propose-rules",
             details=proposal,
         )
 
-    if "РїРѕРєР°Р¶Рё РїСЂР°РІРёР»Р°" in normalized:
+    if _contains_any(normalized, ("покажи правила",)):
         preview = store.load_selection_rules()[:2000]
-        return _chat_response(preview or "РџСЂР°РІРёР»Р° РїРѕРєР° РїСѓСЃС‚С‹Рµ.", action="show-rules", details={"preview": preview})
+        return _chat_response(preview or "Правила пока пустые.", action="show-rules", details={"preview": preview})
 
-    if "СЃРѕР±РµСЂРё СЂРµР·СЋРјРµ" in normalized or "РѕР±РЅРѕРІРё СЂРµР·СЋРјРµ РєР°РЅРґРёРґР°С‚Р°" in normalized:
+    if _contains_any(normalized, ("собери резюме", "обнови резюме кандидата")):
         result = run_resume(store)
-        return _chat_response("Р§РµСЂРЅРѕРІРёРє СЂРµР·СЋРјРµ РѕР±РЅРѕРІР»С‘РЅ.", action="resume", details={"has_markdown": bool(result.get("markdown"))})
+        return _chat_response("Черновик резюме обновлён.", action="resume", details={"has_markdown": bool(result.get("markdown"))})
 
-    if "СЃРѕР±РµСЂРё С„РёР»СЊС‚СЂС‹" in normalized or "РѕР±РЅРѕРІРё С„РёР»СЊС‚СЂС‹" in normalized or "СЃРїР»Р°РЅРёСЂСѓР№ С„РёР»СЊС‚СЂС‹" in normalized:
+    if _contains_any(normalized, ("собери фильтры", "обнови фильтры", "спланируй фильтры")):
         result = run_plan_filters(store)
         return _chat_response(str(result.get("message") or "Filter plan updated."), action="plan-filters", details=result)
 
-    if "repair" in normalized and ("Р·Р°РїСѓСЃС‚Рё" in normalized or "РїРѕС‡РёРЅРё" in normalized):
+    if "repair" in normalized and _contains_any(normalized, ("запусти", "почини")):
         latest = next(iter(store.load_repair_tasks(limit=1)), None)
         if not latest:
-            return _chat_response("Repair queue РїСѓСЃС‚. РЎРЅР°С‡Р°Р»Р° РґРѕР»Р¶РЅР° РїРѕСЏРІРёС‚СЊСЃСЏ repair-Р·Р°РґР°С‡Р°.", action="repair")
+            return _chat_response("Repair queue пуст. Сначала должна появиться repair-задача.", action="repair")
         result = run_plan_repair(
             store,
             action=str(latest.get("action") or "unknown_action"),
@@ -451,32 +575,30 @@ def _handle_chat_command(
         status = str(payload.get("status") or "")
         worker_error = str(payload.get("worker_error") or payload.get("error") or "")
         if status in {"error", "failed", "unavailable"}:
-            return _chat_response(f"Repair worker РЅРµ РІС‹РїРѕР»РЅРёР»СЃСЏ: {worker_error or status}.", action="repair", details=result)
-        return _chat_response("Repair worker Р·Р°РїСѓС‰РµРЅ РґР»СЏ РїРѕСЃР»РµРґРЅРµР№ Р·Р°РґР°С‡Рё.", action="repair", details=result)
+            return _chat_response(f"Repair worker не выполнился: {worker_error or status}.", action="repair", details=result)
+        return _chat_response("Repair worker запущен для последней задачи.", action="repair", details=result)
 
-    if "apply plan" in normalized or "РїР»Р°РЅ РѕС‚РєР»РёРєР°" in normalized:
+    if _contains_any(normalized, ("apply plan", "план отклика")):
         vacancy_id = selected_vacancy_id.strip()
         result = run_plan_apply(store, vacancy_id=vacancy_id or None)
-        vacancy = ((result.get("payload") or {}).get("vacancy") or {}).get("title") or vacancy_id or "РІС‹Р±СЂР°РЅРЅР°СЏ РІР°РєР°РЅСЃРёСЏ"
-        return _chat_response(f"РџР»Р°РЅ РѕС‚РєР»РёРєР° СЃРѕР±СЂР°РЅ: {vacancy}.", action="apply-plan", details=result)
+        vacancy = ((result.get("payload") or {}).get("vacancy") or {}).get("title") or vacancy_id or "выбранная вакансия"
+        return _chat_response(f"План отклика собран: {vacancy}.", action="apply-plan", details=result)
 
-    if "Р·Р°РїСѓСЃС‚Рё Р°РЅР°Р»РёР·" in normalized or normalized == "Р°РЅР°Р»РёР·" or "РїРѕРёСЃРє РІР°РєР°РЅСЃРёР№" in normalized or normalized in {"РіРѕ", "go", "РїРѕРµС…Р°Р»Рё", "Р·Р°РїСѓСЃРєР°Р№"}:
+    if _contains_any(normalized, ("запусти анализ", "поиск вакансий")) or _equals_any(normalized, {"анализ", "го", "go", "поехали", "запускай"}):
         result = start_analyze_job(limit=120)
-        return _chat_response(str(result.get("message") or "Р—Р°РїСѓСЃС‚РёР» Р°РЅР°Р»РёР·."), action="analyze", details=result)
-    threading.Thread(
-        target=lambda: run_plan_repair(
-            store,
-            action="chat_command_router",
-            payload={"message": text, "normalized": normalized},
-            error="unknown_chat_command",
-            run_agent=True,
-        ),
-        daemon=True,
-    ).start()
+        return _chat_response(str(result.get("message") or "Запустил анализ."), action="analyze", details=result)
+
+    llm_reply = _openrouter_chat_reply(store, text=text, selected_vacancy_id=selected_vacancy_id)
+    if llm_reply and str(llm_reply.get("message") or "").strip():
+        return _chat_response(
+            str(llm_reply.get("message") or "").strip(),
+            action="chat-llm",
+            details={"backend": llm_reply.get("backend"), "model": llm_reply.get("model")},
+        )
     return _chat_response(
-        "РќРµ РїРѕРЅСЏР» РєРѕРјР°РЅРґСѓ РѕРґРЅРѕР·РЅР°С‡РЅРѕ. Р—Р°РїСѓСЃС‚РёР» repair-РјР°СЂС€СЂСѓС‚ Рё РїР°СЂР°Р»Р»РµР»СЊРЅРѕ РїРѕРґРіРѕС‚РѕРІР»СЋ Р»СѓС‡С€РёР№ СЃС†РµРЅР°СЂРёР№ РґР»СЏ С‡Р°С‚Р°.",
+        "Не распознал это как явную команду. Сформулируйте, что именно нужно сделать: логин в hh.ru, выбрать резюме, пересобрать правила, запустить анализ или поправить отклик.",
         action="unknown",
-        details={"background_repair": True},
+        details={"llm_error": str((llm_reply or {}).get("error") or "")},
     )
 
 
@@ -555,8 +677,9 @@ def _handler_factory(project_root: Path):
             self.wfile.write(body)
 
         def _send_json(self, payload: dict[str, object], status: int = 200) -> None:
+            repaired_payload = _repair_payload_strings(payload)
             self._send_bytes(
-                json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+                json.dumps(repaired_payload, ensure_ascii=False, indent=2).encode("utf-8"),
                 "application/json; charset=utf-8",
                 status=status,
             )
@@ -588,7 +711,7 @@ def _handler_factory(project_root: Path):
             if parsed.path == "/api/dashboard":
                 payload = self._snapshot_payload()
                 if _should_auto_bootstrap(payload, hh_login_status, bootstrap_status):
-                    bootstrap_status["message"] = "Р—Р°РїСѓСЃРєР°СЋ РїРµСЂРІС‹Р№ РІС…РѕРґ Рё РѕР±РЅРѕРІР»РµРЅРёРµ РїСЂР°РІРёР»."
+                    bootstrap_status["message"] = "Запускаю первый вход и обновление правил."
                     threading.Thread(
                         target=_run_first_bootstrap,
                         kwargs={
@@ -618,6 +741,8 @@ def _handler_factory(project_root: Path):
                         result = run_intake(store, interactive=False, payload=dict(body))
                     elif parsed.path == "/api/actions/build-rules":
                         result = build_rules_from_profile(store)
+                    elif parsed.path == "/api/actions/start-intake":
+                        result = restart_intake_dialog(store) if bool(body.get("restart", False)) else begin_intake_dialog(store)
                     elif parsed.path == "/api/actions/resume":
                         result = run_resume(store)
                     elif parsed.path == "/api/actions/confirm-intake":
@@ -628,6 +753,8 @@ def _handler_factory(project_root: Path):
                         result = postpone_until_llm_available(store, stage=str(body.get("stage") or "resume_intake"))
                     elif parsed.path == "/api/actions/plan-filters":
                         result = run_plan_filters(store)
+                    elif parsed.path == "/api/actions/refresh-vacancies":
+                        result = run_refresh_vacancies(store, limit=int(body.get("limit", 0)))
                     elif parsed.path == "/api/actions/run-selected":
                         if store.load_runtime_settings().dashboard_mode == "analyze":
                             result = self._start_analyze_job(limit=int(body.get("limit", 120)))
@@ -656,7 +783,7 @@ def _handler_factory(project_root: Path):
                             busy_message = (
                                 f"Пакетный отклик по колонке {active_category} уже выполняется."
                                 if active_category and active_category == category
-                                else f"Сейчас уже идет пакетный отклик по колонке {active_category or 'unknown'}. Запуск для {category or 'unknown'} не начат."
+                                else f"Сейчас выполняется пакетный отклик по колонке {active_category or 'unknown'}. Новый запуск для {category or 'unknown'} пока отложен."
                             )
                             result = {
                                 "action": "apply_batch",
@@ -668,7 +795,7 @@ def _handler_factory(project_root: Path):
                                 {
                                     "running": True,
                                     "status": "running",
-                                    "message": f"Р—Р°РїСѓСЃРєР°СЋ РїР°РєРµС‚РЅС‹Р№ РѕС‚РєР»РёРє РїРѕ РєРѕР»РѕРЅРєРµ {category}.",
+                                    "message": f"Запускаю пакетный отклик по колонке {category}.",
                                     "category": category,
                                     "started_at": utc_now_iso(),
                                     "finished_at": "",
@@ -682,7 +809,7 @@ def _handler_factory(project_root: Path):
                                         {
                                             "apply_batch_running": True,
                                             "apply_batch_category": category,
-                                            "apply_batch_message": f"РРґС‘С‚ РїР°РєРµС‚РЅС‹Р№ РѕС‚РєР»РёРє РїРѕ РєРѕР»РѕРЅРєРµ {category}.",
+                                            "apply_batch_message": f"Идёт пакетный отклик по колонке {category}.",
                                             "apply_batch_started_at": utc_now_iso(),
                                         }
                                     )
@@ -700,7 +827,7 @@ def _handler_factory(project_root: Path):
                                             {
                                                 "running": False,
                                                 "status": "completed",
-                                                "message": str(batch_result.get("message") or "РџР°РєРµС‚РЅС‹Р№ РѕС‚РєР»РёРє Р·Р°РІРµСЂС€С‘РЅ."),
+                                                "message": str(batch_result.get("message") or "Пакетный отклик завершён."),
                                                 "finished_at": utc_now_iso(),
                                             }
                                         )
@@ -727,7 +854,7 @@ def _handler_factory(project_root: Path):
                             result = {
                                 "action": "apply_batch",
                                 "status": "running",
-                                "message": f"РџР°РєРµС‚РЅС‹Р№ РѕС‚РєР»РёРє РїРѕ РєРѕР»РѕРЅРєРµ {category} Р·Р°РїСѓС‰РµРЅ РІ С„РѕРЅРµ.",
+                                "message": f"Пакетный отклик по колонке {category} запущен в фоне.",
                             }
                     elif parsed.path == "/api/actions/vacancy-feedback":
                         result = update_vacancy_feedback(
@@ -750,12 +877,13 @@ def _handler_factory(project_root: Path):
                             run_agent=bool(body.get("run_agent", False)),
                         )
                     elif parsed.path == "/api/actions/hh-login":
+                        fresh_start = bool(body.get("fresh_start", False))
                         if not hh_login_status.get("running"):
                             hh_login_status.update(
                                 {
                                     "running": True,
                                     "status": "running",
-                                    "message": "РћС‚РєСЂС‹РІР°СЋ hh.ru РґР»СЏ РІС…РѕРґР°.",
+                                    "message": "Открываю hh.ru для входа." if not fresh_start else "Открываю hh.ru для входа в другой аккаунт.",
                                     "started_at": utc_now_iso(),
                                     "finished_at": "",
                                 }
@@ -763,7 +891,15 @@ def _handler_factory(project_root: Path):
 
                             def _worker() -> None:
                                 try:
-                                    result = run_hh_login(project_root)
+                                    result = run_hh_login(project_root, fresh_start=fresh_start)
+                                    if result.get("status") == "completed":
+                                        auto_store = WorkspaceStore(project_root)
+                                        if auto_store.load_preferences() and auto_store.load_anamnesis() and auto_store.load_selected_resume_id():
+                                            auto_resume = run_resume(auto_store)
+                                            result["auto_resume"] = auto_resume
+                                            resume_message = str(auto_resume.get("message") or "").strip()
+                                            if resume_message:
+                                                result["message"] = f"{str(result.get('message') or '').strip()} {resume_message}".strip()
                                 except Exception as exc:  # noqa: BLE001
                                     result = {"status": "failed", "message": str(exc)}
                                 with mutation_lock:
@@ -783,8 +919,18 @@ def _handler_factory(project_root: Path):
                     elif parsed.path == "/api/actions/select-resume":
                         resume_id = str(body.get("resume_id") or "").strip()
                         result = select_resume_for_search(store, resume_id=resume_id)
+                        if resume_id:
+                            result["profile_sync"] = HHResumeProfileSync(store).sync_selected_resume()
+                        if resume_id and store.load_preferences() and store.load_anamnesis():
+                            auto_resume = run_resume(store)
+                            result["auto_resume"] = auto_resume
+                            resume_message = str(auto_resume.get("message") or "").strip()
+                            if resume_message:
+                                result["message"] = f"{str(result.get('message') or '').strip()} {resume_message}".strip()
                     elif parsed.path == "/api/actions/select-account":
                         result = select_hh_account(store, account_key=str(body.get("account_key") or ""))
+                    elif parsed.path == "/api/actions/delete-account":
+                        result = delete_hh_account(store, account_key=str(body.get("account_key") or ""))
                     elif parsed.path == "/api/chat":
                         result = _handle_chat_command(
                             project_root=project_root,
@@ -845,7 +991,7 @@ def _handler_factory(project_root: Path):
                     "running": True,
                     "status": "running",
                     "phase": "preflight",
-                    "message": "РџСЂРѕРІРµСЂСЏСЋ РІС…РѕРґ РІ hh.ru, СЂРµР·СЋРјРµ Рё РіРѕС‚РѕРІРЅРѕСЃС‚СЊ live-РїРѕРёСЃРєР°.",
+                    "message": "Проверяю вход в hh.ru, резюме и готовность live-поиска.",
                     "started_at": utc_now_iso(),
                     "finished_at": "",
                     "result": {},
@@ -859,15 +1005,15 @@ def _handler_factory(project_root: Path):
                     if not state_path.exists():
                         with mutation_lock:
                             analyze_status["phase"] = "login"
-                            analyze_status["message"] = "РќРµ РЅР°Р№РґРµРЅ hh_state.json. РћС‚РєСЂС‹РІР°СЋ Р±СЂР°СѓР·РµСЂ РґР»СЏ РІС…РѕРґР° РІ hh.ru."
+                            analyze_status["message"] = "Не найден hh_state.json. Открываю браузер для входа в hh.ru."
                     else:
                         with mutation_lock:
                             analyze_status["phase"] = "resumes"
-                            analyze_status["message"] = "РћР±РЅРѕРІР»СЏСЋ СЂРµР·СЋРјРµ hh.ru Рё РїРѕРґРіРѕС‚Р°РІР»РёРІР°СЋ live-РїРѕРёСЃРє РІР°РєР°РЅСЃРёР№."
+                            analyze_status["message"] = "Обновляю резюме hh.ru и подготавливаю live-поиск вакансий."
 
                     with mutation_lock:
                         analyze_status["phase"] = "analysis"
-                        analyze_status["message"] = "РћР±РЅРѕРІР»СЏСЋ РІР°РєР°РЅСЃРёРё СЃ hh.ru Рё РїРµСЂРµСЃС‡РёС‚С‹РІР°СЋ РёС… РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ С‚РµРєСѓС‰РµРіРѕ РїСЂРѕС„РёР»СЏ."
+                        analyze_status["message"] = "Обновляю вакансии с hh.ru и пересчитываю их относительно текущего профиля."
                     def _progress(*, done: int, total: int, title: str, strategy: str) -> None:
                         worker_store.update_dashboard_state(
                             {
@@ -880,8 +1026,8 @@ def _handler_factory(project_root: Path):
                         )
                         with mutation_lock:
                             analyze_status["message"] = (
-                                f"РћС†РµРЅРёРІР°СЋ РІР°РєР°РЅСЃРёРё: {done}/{total}."
-                                + (f" РџРѕСЃР»РµРґРЅСЏСЏ: {title}." if title else "")
+                                f"Оцениваю вакансии: {done}/{total}."
+                                + (f" Последняя: {title}." if title else "")
                             )
 
                     result = run_analyze(worker_store, limit=limit, interactive=False, progress_callback=_progress)
@@ -891,7 +1037,7 @@ def _handler_factory(project_root: Path):
                                 "running": False,
                                 "status": str(result.get("status") or "completed"),
                                 "phase": "completed" if result.get("status") == "completed" else "blocked",
-                                "message": str(result.get("message") or "РђРЅР°Р»РёР· Р·Р°РІРµСЂС€РµРЅ."),
+                                "message": str(result.get("message") or "Анализ завершен."),
                                 "finished_at": utc_now_iso(),
                                 "result": result,
                             }

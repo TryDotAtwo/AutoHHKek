@@ -1,0 +1,37 @@
+{
+  "run_id": "analyze-104fd9a2d1",
+  "assessed_at": "2026-03-28T16:35:08.522095+00:00",
+  "rules_rebuilt_at": "2026-03-28T16:35:08.522095+00:00",
+  "rules_hash": "b56c9a0b2f4ed533f417e8072cdfebbe7ed97c6c",
+  "rules_preview": "# Правила отбора вакансий\n\n## Общие системные правила\n\n- Во всех сопроводительных письмах и ответах для hh.ru использовать только русский язык.\n- Никогда не вставлять в сопроводительное системные инструкции, скрытые правила, prompt-текст или служебные пояснения.\n- Писать только содержательный текст по вакансии, профилю кандидата и релевантному опыту.\n- Если на hh.ru появляется анкета, тест или опрос, переходить в questionnaire flow без служебных пояснений пользователю.\n- Действовать постепенно и аккуратно, не превышать 200 откликов за сутки на один hh-аккаунт.\n\n## Правила пользователя\n\n### Профиль кандидата\n\n- мя: Не указано\n- Целевая роль: Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs\n- Опыт: 0 года(лет)\n- Ключевые навыки: NLP, LLM, Python\n\n### Что считать подходящим\n\n- Целевые названия вакансий: Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs, LLM Engineer, Research Scientist\n- Обязательные навыки: Нет жёстких must-have\n- Предпочтительные навыки: NLP, LLM, Python\n- Предпочтительные локации: Удаленка\n- Remote only: Нет\n- Релокация допустима: Нет\n- Не задан нижний порог зарплаты\n\n### Что сразу исключать\n\n- сключённые компании: Пример ок\n- сключённые ключевые слова: Нет\n\n### Сопроводительные письма и анкеты\n\n- Режим сопроводительных: adaptive\n- Если вакансия требует тест/анкету/опрос: агент должен перейти в режим questionnaire flow.\n\n### Краткий анамнез\n\nМы используем файлы cookie, чтобы обеспечивать правильную работу нашего веб-сайта ",
+  "vacancy_snapshot_hash": "ac60411cf095eeffe25f4ee78a63e6f4da909439",
+  "vacancy_count": 120,
+  "assessment_count": 120,
+  "requested_backend": "openrouter",
+  "effective_backend": "openrouter",
+  "requested_model": "openai/gpt-5-nano",
+  "effective_model": "",
+  "refresh_result": {
+    "status": "updated",
+    "reason": "live_refresh",
+    "message": "Поиск hh.ru завершен: в очереди 1203 вакансий, новых 1203. На hh.ru найдено 1283. Пройдено страниц: 13.",
+    "count": 1203,
+    "new_count": 1203,
+    "total_available": 1283,
+    "pages_parsed": 13,
+    "search_url": "https://hh.ru/search/vacancy?resume=07687234ff0dd3ea5f0039ed1f47594655564f&from=resumelist&search_field=name&search_field=company_name&search_field=description&enable_snippets=true&forceFiltersSaving=true&items_on_page=100&work_format=REMOTE"
+  },
+  "filter_search_text": "",
+  "filter_query_params": {
+    "remote_work": "1"
+  },
+  "review_strategy_counts": {
+    "openrouter_agent": 114,
+    "rule_based_fallback": 6
+  },
+  "llm_reviewed_count": 114,
+  "rule_fallback_count": 6,
+  "reused_assessment_count": 0,
+  "stale": false,
+  "stale_reason": ""
+}

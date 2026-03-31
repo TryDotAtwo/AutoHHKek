@@ -1,0 +1,27 @@
+{
+  "full_name": "",
+  "target_titles": [
+    "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs",
+    "LLM Engineer",
+    "Research Scientist"
+  ],
+  "excluded_companies": [
+    "Пример ок"
+  ],
+  "excluded_keywords": [],
+  "required_skills": [],
+  "preferred_skills": [
+    "NLP",
+    "LLM",
+    "Python"
+  ],
+  "preferred_locations": [
+    "Удаленка"
+  ],
+  "forbidden_keywords": [],
+  "salary_min": null,
+  "remote_only": false,
+  "allow_relocation": false,
+  "cover_letter_mode": "adaptive",
+  "notes": "Формат работы: Удаленка"
+}

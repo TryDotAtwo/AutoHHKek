@@ -1,0 +1,331 @@
+{
+  "vacancy": {
+    "vacancy_id": "128579166",
+    "title": "Team Lead AI/ML",
+    "company": "Газпромбанк",
+    "location": "Москва",
+    "employment": "",
+    "salary_text": "3-6",
+    "salary_from": null,
+    "salary_to": null,
+    "is_remote": true,
+    "url": "https://hh.ru/vacancy/128579166?hhtmFrom=vacancy_search_list",
+    "summary": "Разработка и внедрение AI/ML и LLM-компонентов для умной роботизации процессов бэк-офиса. Обучение, интеграция и сопровождение моделей в...",
+    "description": "",
+    "skills": [],
+    "meta": {
+      "source": "hh_live_search",
+      "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
+    }
+  },
+  "assessment": {
+    "vacancy_id": "128579166",
+    "category": "fit",
+    "subcategory": "llm_review",
+    "score": 88.0,
+    "explanation": "Соответствие профилю: NLP/LLM/Python; удаленка поддерживается; роль Team Lead; зарплатный диапазон сопоставим с ожиданиями.",
+    "reasons": [
+      {
+        "code": "skills_match",
+        "label": "Навыки совпадают",
+        "group": "positive",
+        "detail": "Кандидат указал NLP, LLM, Python — ключевые компетенции для роли.",
+        "weight": 0.9,
+        "subcategory": "skills_match"
+      },
+      {
+        "code": "work_mode",
+        "label": "Учитывается формат работы",
+        "group": "positive",
+        "detail": "Вакансия поддерживает удаленную работу, что соответствует предпочтениям кандидата.",
+        "weight": 0.8,
+        "subcategory": "work_mode"
+      },
+      {
+        "code": "leadership_fit",
+        "label": "Лидерство/руководство",
+        "group": "positive",
+        "detail": "Должность Team Lead предполагает управленческие функции; потенциальный опыт кандидата в руководстве.",
+        "weight": 0.8,
+        "subcategory": "leadership"
+      },
+      {
+        "code": "location_fit",
+        "label": "География",
+        "group": "positive",
+        "detail": "Москва, но формат удаленный; кандидат готов к удаленной работе.",
+        "weight": 0.7,
+        "subcategory": "location"
+      },
+      {
+        "code": "salary_fit",
+        "label": "Соответствие зарплате",
+        "group": "positive",
+        "detail": "Диапазон 3-6 (предположительно ок 300–600k ₽ на руки) совпадает с ожидаемым кандидатом диапазоном.",
+        "weight": 0.6,
+        "subcategory": "salary"
+      }
+    ],
+    "recommended_action": "Рассмотреть на интервью; при контакте уточнить детали команды и leadership expectations.",
+    "ready_for_apply": true,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Источники: hh.ru; профиль резюме кандидата соответствует требованиям вакансии."
+  },
+  "runtime": {
+    "backend": "playwright",
+    "headless": false,
+    "supports": [
+      "vacancy-analysis",
+      "resume-draft",
+      "screening-plan",
+      "cover-letter-plan",
+      "dashboard-observability",
+      "script-first-ui-automation",
+      "repair-worker",
+      "openrouter-vacancy-review",
+      "openrouter-filter-planning",
+      "g4f-vacancy-review",
+      "g4f-filter-planning",
+      "playwright-mcp-repair"
+    ],
+    "script_actions": [
+      "choose_resume",
+      "click_apply_button",
+      "open_search_page",
+      "set_area_filter",
+      "set_remote_filter",
+      "set_salary_min",
+      "set_search_text"
+    ],
+    "openai_available": false,
+    "openai_ready": false,
+    "openai_model": "gpt-5.4",
+    "openrouter_ready": true,
+    "openrouter_model": "openai/gpt-5-nano",
+    "selected_llm_backend": "openrouter",
+    "selected_llm_backend_ready": true,
+    "effective_backend": "openrouter",
+    "effective_backend_ready": true,
+    "fallback_applied": false,
+    "llm_backends": {
+      "openai": {
+        "ready": false,
+        "model": "gpt-5.4",
+        "supports_mcp_repair": true
+      },
+      "openrouter": {
+        "ready": true,
+        "model": "openai/gpt-5-nano",
+        "base_url": "https://openrouter.ai/api/v1",
+        "supports_mcp_repair": true
+      },
+      "g4f": {
+        "ready": true,
+        "requested_model": "gpt-4o-mini",
+        "requested_provider": "OpenaiChat",
+        "model": "gpt-4o-mini",
+        "provider": "OpenaiChat",
+        "resolved_model": "gpt-4o-mini",
+        "resolved_provider": "OpenaiChat",
+        "resolution": "requested_model",
+        "targets": [
+          {
+            "model": "gpt-4o-mini",
+            "provider": "OpenaiChat",
+            "base_provider": "OpenAI",
+            "working": true,
+            "needs_auth": false,
+            "label": "gpt-4o-mini via OpenaiChat"
+          },
+          {
+            "model": "gpt-4o-mini",
+            "provider": "Chatai",
+            "base_provider": "OpenAI",
+            "working": true,
+            "needs_auth": false,
+            "label": "gpt-4o-mini via Chatai"
+          },
+          {
+            "model": "gpt-4o",
+            "provider": "OpenaiChat",
+            "base_provider": "OpenAI",
+            "working": true,
+            "needs_auth": false,
+            "label": "gpt-4o via OpenaiChat"
+          },
+          {
+            "model": "gemini-2.5-flash",
+            "provider": "GeminiPro",
+            "base_provider": "Google",
+            "working": true,
+            "needs_auth": false,
+            "label": "gemini-2.5-flash via GeminiPro"
+          }
+        ],
+        "supports_mcp_repair": false
+      }
+    },
+    "playwright_mcp_ready": true,
+    "playwright_mcp_command": "C:\\Program Files\\nodejs\\npx.CMD",
+    "playwright_mcp_source": "configured",
+    "playwright_mcp": {
+      "command": "C:\\Program Files\\nodejs\\npx.CMD",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "encoding": "utf-8"
+    },
+    "local_playwright_ready": true,
+    "local_playwright_subprocess_error": "",
+    "local_playwright_launch_error": ""
+  },
+  "backend_status": "Script-first DOM automation with OpenRouter review/planning and Playwright MCP repair fallback.",
+  "filter_plan": {
+    "search_text": "",
+    "query_params": {
+      "salary_from": 300000,
+      "remote_work": "1",
+      "area": "Москва"
+    },
+    "search_url": "https://hh.ru/search/vacancy?from=resumelist&search_field=name&search_field=company_name&search_field=description&enable_snippets=true&forceFiltersSaving=true&resume=07687234ff0dd3ea5f0039ed1f47594655564f&salary_from=300000&area=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0&work_format=REMOTE",
+    "resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f",
+    "ui_actions": [
+      {
+        "action": "open_search_page",
+        "success": true,
+        "strategy": "script",
+        "details": {
+          "url": "https://hh.ru/search/vacancy",
+          "method": "goto"
+        },
+        "error": "",
+        "fallback": null
+      },
+      {
+        "action": "set_salary_min",
+        "success": true,
+        "strategy": "script",
+        "details": {
+          "selector": "input[data-qa='advanced-search-salary']",
+          "value": 300000,
+          "method": "fill"
+        },
+        "error": "",
+        "fallback": null
+      },
+      {
+        "action": "set_remote_filter",
+        "success": true,
+        "strategy": "script",
+        "details": {
+          "selector": "[data-qa='advanced-search__remote-work']",
+          "value": true,
+          "method": "check"
+        },
+        "error": "",
+        "fallback": null
+      },
+      {
+        "action": "set_area_filter",
+        "success": true,
+        "strategy": "script",
+        "details": {
+          "selector": "[data-qa='advanced-search-region-switcher']",
+          "value": "Москва",
+          "method": "select"
+        },
+        "error": "",
+        "fallback": null
+      }
+    ],
+    "residual_rules": [
+      "Exclude employers matching: Пример ок",
+      "User note: Формат работы: Удаленка",
+      "Remote/удалёнка указаны в предпочтениях пользователя, даже если флаг remote_only ещё не был сохранён.",
+      "Exclude company: Пример ок",
+      "Remote work: Удаленка (remote) preferred; гибрид допускается по профилю",
+      "Search hint from planner: Theoretical physicist LLM Engineer Research Scientist NLP LLMs Python"
+    ],
+    "strategy": "script_first_with_openrouter_planning",
+    "planner_backend": "openrouter_agent",
+    "planning_notes": [
+      "User targets NLP/LLM roles (Theoretical physicist/LLM Engineer/Research Scientist) with remote work in Moscow area, minimum ~300k RUB, excluding specified company; emphasizes Python/NLP/LLM skills.",
+      "Resume-first search enabled: hh resume drives the broad candidate pool; text narrowing stays in residual rules and local scoring."
+    ],
+    "llm_planner_status": "ok",
+    "llm_planner_error": "",
+    "llm_filter_intent": {
+      "search_text": "Theoretical physicist LLM Engineer Research Scientist NLP LLMs Python",
+      "area_code": "Москва",
+      "remote_only": true,
+      "salary_min": 300000,
+      "residual_rules": [
+        "Exclude company: Пример ок",
+        "Remote work: Удаленка (remote) preferred; гибрид допускается по профилю"
+      ],
+      "rationale": "User targets NLP/LLM roles (Theoretical physicist/LLM Engineer/Research Scientist) with remote work in Moscow area, minimum ~300k RUB, excluding specified company; emphasizes Python/NLP/LLM skills."
+    }
+  },
+  "screening_plan": {
+    "platform": "hh",
+    "target_url": "https://hh.ru/vacancy/128579166?hhtmFrom=vacancy_search_list",
+    "questions": [],
+    "notes": [
+      "Явных сигналов теста не найдено, но анкету всё равно стоит ожидать."
+    ],
+    "requires_manual_review": false
+  },
+  "cover_letter_enabled": true,
+  "cover_letter_preview": "Здравствуйте! Меня заинтересовала вакансия Team Lead AI/ML в Газпромбанк. У меня 8.8 лет опыта в направлении Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs, основной стек включает NLP, LLM, Python. Соответствие профилю: NLP/LLM/Python; удаленка поддерживается; роль Team Lead; зарплатный диапазон сопоставим с ожиданиями. Готов подробно обсудить наиболее релевантный для этой вакансии опыт и аккуратно пройти анкету или тест, если они предусмотрены.",
+  "stages": [
+    {
+      "stage": "analysis",
+      "title": "Vacancy analysis",
+      "status": "ready"
+    },
+    {
+      "stage": "resume",
+      "title": "Resume selection",
+      "status": "ready"
+    },
+    {
+      "stage": "screening",
+      "title": "Questionnaire or test",
+      "status": "ready"
+    },
+    {
+      "stage": "cover_letter",
+      "title": "Cover letter",
+      "status": "ready"
+    },
+    {
+      "stage": "submit",
+      "title": "Submit application",
+      "status": "pending"
+    },
+    {
+      "stage": "post_apply",
+      "title": "Post-apply hh chat or survey",
+      "status": "pending"
+    }
+  ],
+  "script_actions": [
+    {
+      "action": "click_apply_button",
+      "success": true,
+      "strategy": "script",
+      "details": {
+        "selector_candidates": [
+          "a[data-qa='vacancy-response-link-top']",
+          "button[data-qa='vacancy-response-button']",
+          "button:has-text('Откликнуться')"
+        ],
+        "method": "click",
+        "vacancy_id": "128579166"
+      },
+      "error": "",
+      "fallback": null
+    }
+  ]
+}

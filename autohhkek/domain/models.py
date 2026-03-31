@@ -251,7 +251,7 @@ class HHRuntimeConfig:
 
 @dataclass(slots=True)
 class RuntimeSettings:
-    llm_backend: str = "openai"
+    llm_backend: str = "openrouter"
     dashboard_mode: str = "analyze"
     mode_selected: bool = False
     auto_run_repair_worker: bool = False

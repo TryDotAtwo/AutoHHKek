@@ -13,9 +13,10 @@ from autohhkek.agents.openrouter_resume_intake_agent import OpenRouterResumeInta
 from autohhkek.agents.resume_agent import ResumeAgent
 from autohhkek.agents.vacancy_analysis_agent import VacancyAnalysisAgent
 from autohhkek.domain.enums import FitCategory
-from autohhkek.domain.models import utc_now_iso
+from autohhkek.domain.models import Anamnesis, UserPreferences, utc_now_iso
 from autohhkek.integrations.hh.runtime import HHAutomationRuntime
 from autohhkek.services.hh_apply import apply_to_vacancy
+from autohhkek.services.hh_login import run_hh_login
 from autohhkek.services.hh_preflight import ensure_hh_context
 from autohhkek.services.hh_resume_sync import HHResumeProfileSync
 from autohhkek.services.chat_rule_parser import parse_rule_request
@@ -40,7 +41,7 @@ def update_runtime_settings(store: WorkspaceStore, patch: dict[str, Any]) -> dic
         normalized_patch["mode_selected"] = True
     current.update(normalized_patch)
     saved = store.save_runtime_settings(current)
-    store.record_event("runtime-settings", "РћР±РЅРѕРІР»РµРЅС‹ РЅР°СЃС‚СЂРѕР№РєРё runtime.", details=saved.to_dict())
+    store.record_event("runtime-settings", "Обновлены настройки runtime.", details=saved.to_dict())
     return saved.to_dict()
 
 
@@ -49,6 +50,10 @@ def _split_items(value: Any) -> list[str]:
         return [str(item).strip() for item in value if str(item).strip()]
     raw = str(value or "").replace("\r", "\n").replace(";", ",").replace("\n", ",")
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _normalize_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
 
 
 def _parse_int(value: Any) -> int | None:
@@ -76,7 +81,7 @@ def _extract_xml_text(content: str) -> str:
 def _read_text_attachment(path_value: str) -> tuple[str, str]:
     path = Path(str(path_value or "").strip().strip('"'))
     if not path.exists() or not path.is_file():
-        raise RuntimeError("Р¤Р°Р№Р» СЃ РѕС‚РІРµС‚Р°РјРё РЅРµ РЅР°Р№РґРµРЅ.")
+        raise RuntimeError("Файл с ответами не найден.")
     suffix = path.suffix.lower()
     if suffix in {".md", ".txt"}:
         return path.name, path.read_text(encoding="utf-8")
@@ -84,11 +89,11 @@ def _read_text_attachment(path_value: str) -> tuple[str, str]:
         with zipfile.ZipFile(path) as archive:
             xml = archive.read("word/document.xml").decode("utf-8", errors="ignore")
         return path.name, _extract_xml_text(xml)
-    raise RuntimeError("РџРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ С‚РѕР»СЊРєРѕ .md, .txt Рё .docx. Р”Р»СЏ .doc Р»СѓС‡С€Рµ СЃРѕС…СЂР°РЅРёС‚СЊ РІ .docx РёР»Рё РІСЃС‚Р°РІРёС‚СЊ С‚РµРєСЃС‚ РІ С‡Р°С‚.")
+    raise RuntimeError("Поддерживаются только .md, .txt и .docx. Для .doc лучше сохранить в .docx или вставить текст в чат.")
 
 
 def _yes_no(value: bool) -> str:
-    return "да" if value else "нет"
+    return "" if value else ""
 
 
 def _unique_casefold(items: list[str]) -> list[str]:
@@ -109,19 +114,19 @@ def _unique_casefold(items: list[str]) -> list[str]:
 def _extract_locations_from_text(text: str) -> list[str]:
     lowered = _normalize_text(text)
     aliases = {
-        "москва": "Москва",
-        "санкт-петербург": "Санкт-Петербург",
-        "петербург": "Санкт-Петербург",
-        "новосибирск": "Новосибирск",
-        "екатеринбург": "Екатеринбург",
-        "казань": "Казань",
-        "россия": "Россия",
-        "рф": "Россия",
+        "": "",
+        "-": "-",
+        "": "-",
+        "": "",
+        "": "",
+        "": "",
+        "": "",
+        "": "",
         "eu": "EU",
         "europe": "Europe",
     }
     result = [value for token, value in aliases.items() if token in lowered]
-    if any(token in lowered for token in ("remote", "удален", "удалён", "гибрид", "офис")):
+    if any(token in lowered for token in ("remote", "", "", "", "")):
         result.append("Remote")
     return _unique_casefold(result)
 
@@ -134,34 +139,34 @@ def _extract_industries_from_text(text: str) -> list[str]:
         "ai infra": "AI infra",
         "ml infra": "ML infra",
         "research": "Applied research",
-        "финтех": "Финтех",
+        "": "",
         "healthcare": "Healthcare",
-        "медицина": "Healthcare",
-        "биотех": "Biotech",
+        "": "Healthcare",
+        "": "Biotech",
         "edtech": "EdTech",
         "adtech": "AdTech",
         "cv": "Computer Vision",
         "computer vision": "Computer Vision",
         "robotics": "Robotics",
-        "робот": "Robotics",
+        "": "Robotics",
     }
     return _unique_casefold([value for token, value in known.items() if token in lowered])
 
 
 def _detect_remote_only(text: str) -> bool | None:
     lowered = _normalize_text(text)
-    if any(token in lowered for token in ("только remote", "только удал", "полностью удал", "remote only", "удаленка только", "удалёнка только")):
+    if any(token in lowered for token in (" remote", " ", " ", "remote only", " ", " ")):
         return True
-    if any(token in lowered for token in ("гибрид", "офис", "on-site", "onsite", "не только remote", "не только удал")):
+    if any(token in lowered for token in ("", "", "on-site", "onsite", "  remote", "  ")):
         return False
     return None
 
 
 def _detect_allow_relocation(text: str) -> bool | None:
     lowered = _normalize_text(text)
-    if any(token in lowered for token in ("релокац", "переезд возможен", "готов к переезду")):
+    if any(token in lowered for token in ("", " ", "  ")):
         return True
-    if any(token in lowered for token in ("без переезда", "переезд не нужен", "не готов к переезду")):
+    if any(token in lowered for token in (" ", "  ", "   ")):
         return False
     return None
 
@@ -179,7 +184,7 @@ def _skills_from_text(text: str) -> list[str]:
         "sql": "SQL",
         "langchain": "LangChain",
         "agents": "Agents",
-        "агент": "Agents",
+        "": "Agents",
     }
     return _unique_casefold([value for token, value in skills.items() if token in lowered])
 
@@ -205,7 +210,35 @@ def _resume_title_from_store(store: WorkspaceStore) -> str:
 
 def _safe_resume_sync_for_intake(store: WorkspaceStore) -> dict[str, Any]:
     selected_resume_id = store.load_selected_resume_id()
-    if not selected_resume_id or not store.hh_state_path.exists():
+    if not selected_resume_id:
+        return {}
+    dashboard_state = store.load_dashboard_state()
+    anamnesis = store.load_anamnesis()
+    cached_extracted = dashboard_state.get("last_resume_sync_extracted")
+    if isinstance(cached_extracted, dict) and cached_extracted:
+        return cached_extracted
+
+    local_profile = {
+        "headline": str(dashboard_state.get("last_resume_sync_title") or _resume_title_from_store(store) or getattr(anamnesis, "headline", "") or "").strip(),
+        "summary": str(getattr(anamnesis, "summary", "") or "").strip(),
+        "skills": list(getattr(anamnesis, "primary_skills", []) or []),
+        "languages": list(getattr(anamnesis, "languages", []) or []),
+        "links": list(getattr(anamnesis, "links", []) or []),
+        "experience_years": getattr(anamnesis, "experience_years", 0.0),
+    }
+    if any(
+        [
+            local_profile["headline"],
+            local_profile["summary"],
+            local_profile["skills"],
+            local_profile["languages"],
+            local_profile["links"],
+            local_profile["experience_years"],
+        ]
+    ):
+        return local_profile
+
+    if not store.hh_state_path.exists():
         return {}
     try:
         result = HHResumeProfileSync(store).sync_selected_resume()
@@ -255,7 +288,7 @@ def _llm_resume_intake_analysis(store: WorkspaceStore, *, extracted: dict[str, A
     if not output:
         fallback_state = dict(dashboard_state.get("heuristic_fallback") or {})
         if not fallback_state.get("resume_intake"):
-            reason = agent.last_error or "OpenRouter недоступен для анализа резюме."
+            reason = agent.last_error or "OpenRouter недоступен на этапе resume intake."
             store.update_dashboard_state(
                 {
                     "llm_gate": {
@@ -263,7 +296,7 @@ def _llm_resume_intake_analysis(store: WorkspaceStore, *, extracted: dict[str, A
                         "stage": "resume_intake",
                         "backend": "openrouter",
                         "message": reason[:1200],
-                        "title": "LLM недоступна для анализа резюме",
+                        "title": "LLM временно недоступен",
                     }
                 }
             )
@@ -291,7 +324,7 @@ def choose_heuristic_fallback(store: WorkspaceStore, *, stage: str) -> dict[str,
     return {
         "action": "heuristic-fallback",
         "stage": stage,
-        "message": "LLM fallback подтвержден. Продолжаю работу на эвристиках, пока модель недоступна.",
+        "message": "Переходим на эвристики. Можно продолжать без LLM-разбора.",
     }
 
 
@@ -305,7 +338,7 @@ def postpone_until_llm_available(store: WorkspaceStore, *, stage: str) -> dict[s
     return {
         "action": "llm-wait",
         "stage": stage,
-        "message": "Ок. Эвристики не включаю. Жду, пока LLM снова станет доступна.",
+        "message": "Оставляю шаг в ожидании. Продолжим, когда LLM снова будет доступен.",
     }
 
 
@@ -344,31 +377,31 @@ def _infer_skill_candidates(*values: str) -> list[str]:
 def _missing_intake_topics(preferences: Any, anamnesis: Any) -> list[tuple[str, str, str]]:
     topics: list[tuple[str, str, str]] = []
     if not preferences.target_titles:
-        topics.append(("????? ???? ??? ??? ??????? ????? ???????", "???????? 3-7 ?????, ?? ??????? ??????? ?????? ???????????.", '??????: "LLM Engineer, NLP Engineer, Research Scientist in NLP, Applied Scientist".'))
+        topics.append(("Какие роли считаем целевыми?", "Лучше сразу назвать 3-7 приоритетных ролей для поиска.", 'Пример: "LLM Engineer, NLP Engineer, Research Scientist in NLP, Applied Scientist".'))
     if not anamnesis.primary_skills:
-        topics.append(("????? ?????? ??????? ????? ??????? ??????", "??? ??, ??? ?? ???????? ?????? ????????? ???? ? ???????????????? ? ?? ????????.", '??????: "Python, NLP, LLM, Transformers, PyTorch, RAG".'))
+        topics.append(("Какие навыки уже есть в профиле?", "Нужно зафиксировать базовый стек, который вы реально подтверждаете опытом.", 'Пример: "Python, NLP, LLM, Transformers, PyTorch, RAG".'))
     if not preferences.required_skills:
-        topics.append(("??? ??? ??? must-have ?? ?????????", "??? ??????? ??????????: ???? ?? ???, ???????? ?????? ?? ?????.", '??????: "Python + NLP/LLM, research/product relevance, ??????????? ????????? ??????".'))
+        topics.append(("Что является must-have во вакансии?", "Если этого нет, вакансию обычно не стоит продвигать дальше.", 'Пример: "Python + NLP/LLM, сильный инженерный или исследовательский контекст".'))
     if not preferences.preferred_skills:
-        topics.append(("??? ??????????, ?? ?? ????????????", "??? ?????, ??????? ???????? ????????? ????????, ?? ?? ???????? ????-????????.", '??????: "RAG, MLOps, publication track, production ML, agentic systems".'))
+        topics.append(("Что желательно, но не обязательно?", "Эти сигналы повышают приоритет, но не являются стоп-фактором.", 'Пример: "RAG, MLOps, publication track, production ML, agentic systems".'))
     if not preferences.preferred_locations:
-        topics.append(("????? ???????, ?????? ? ??????? ????? ??? ?????????", "???? ????? ????????, ??? ????? ??????? ??????? ?????????? ?????? ??? ???????? ??????? ??????.", '??????: "remote ?? ??, ??????, UTC+2..UTC+5, ?????? ?? ???????????".'))
+        topics.append(("Какая география и формат подходят?", "Важно сразу понять remote, города, страны и часовые пояса.", 'Пример: "remote, Москва, международные команды, UTC+2..UTC+5".'))
     if not preferences.remote_only and not preferences.allow_relocation:
-        topics.append(("????????? ??? ??? ???????? ?????? ???????", "????????, ??? ?????????: ?????? remote, ??????, ????, ???????? ?? ???????.", '??????: "?????? remote. ?????? ? ???? ?? ????????????. ??????? ?? ?????".'))
+        topics.append(("Нужен ли только remote?", "Это влияет на жёсткий отсев вакансий ещё до анализа.", 'Пример: "Только remote. Переезд не нужен.".'))
     if not preferences.salary_min:
-        topics.append(("????? ??????????? ??????????? ????? ??????", "????? ??????? ?????? ??????? ? ???????? ????????? ????????.", '??????: "?? 350 000 net, ????????? 450 000+".'))
+        topics.append(("Какая минимальная компенсация имеет смысл?", "Нижняя граница помогает не тратить время на заведомо слабые варианты.", 'Пример: "От 350 000 net" или "от 450 000 gross".'))
     if not preferences.excluded_companies:
-        topics.append(("????? ???????? ? ???? ???????? ??????????", "????? ????? ??????????? ?????? ?????? ?????????????, ? ?? ?????? ????????? ??????.", '??????: "????????????, ????????????, research institutes, ??????????? ??? ??????? ML-??????".'))
+        topics.append(("Какие компании или типы работодателей исключаем?", "Это нужно, чтобы сразу убирать нежелательные вакансии.", 'Пример: "госструктуры, университеты, research institutes, бюрократичные non-ML роли".'))
     if not preferences.forbidden_keywords and not preferences.excluded_keywords:
-        topics.append(("????? ????-????? ? ??????? ????? ????? ?????????", "??? ???????? ?????? ??????? ????? ?? ??????.", '??????: "CV, computer vision only, sales, analyst without ML, ????????????, ?????????".'))
+        topics.append(("Какие стоп-слова режут вакансию сразу?", "Стоп-слова помогают быстро вычищать шум из выдачи.", 'Пример: "CV only, computer vision only, sales, analyst without ML, госслужба".'))
     if not anamnesis.industries:
-        topics.append(("????? ?????? ? ??????? ??? ????????? ??? ???????? ?????????????", "??? ?????, ????? ????? ???????? ???????? ??????? ???? ? ????????????? ???.", '??????: "?????????: AI infra, LLM products, applied research; ?? ????: ??????, ?????? ????????, adtech".'))
+        topics.append(("Какие домены интересны или нежелательны?", "Так агент лучше понимает смысл вакансии, а не только название.", 'Пример: "интересно: AI infra, LLM products, applied research; не хочу: госуха, adtech".'))
     if not anamnesis.education:
-        topics.append(("??? ????? ????????????? ??? ??????????? ? ??????????", "???? ????? ???????? ??, ??? ????????? ???????????????? ? ?????? ?? ?????.", '??????: "????????????? ??????, ??????? ??????????, research background".'))
+        topics.append(("Какой образовательный или исследовательский контекст важно учитывать?", "Это помогает лучше подать профиль в сопроводительных и фильтрах.", 'Пример: "сильный research background, физика, математика".'))
     if not anamnesis.languages:
-        topics.append(("????? ????? ??????? ????????", "??? ?????? ? ?? ?????, ? ?? ??? ?????????????????, ? ?? ?????????? ????????.", '??????: "??????? ????????, ?????????? C1 ??? ??????/????????/?????????".'))
+        topics.append(("Какие языки рабочие?", "Это влияет на поиск, анкеты и тон сопроводительных.", 'Пример: "Русский свободно, английский C1".'))
     if not anamnesis.links:
-        topics.append(("????? ?????? ????? ???????????? ? ?????????", "???????? GitHub, Google Scholar, LinkedIn, ?????????, ??????, pet-projects.", '??????: "GitHub ..., Scholar ..., LinkedIn ...".'))
+        topics.append(("Какие ссылки стоит использовать в откликах?", "GitHub, Scholar, LinkedIn, статьи и pet-проекты усиливают профиль.", 'Пример: "GitHub ..., Scholar ..., LinkedIn ...".'))
     return topics
 
 
@@ -376,62 +409,67 @@ def build_detailed_intake_prompt(store: WorkspaceStore) -> str:
     preferences = store.load_preferences()
     anamnesis = store.load_anamnesis()
     extracted = _safe_resume_sync_for_intake(store)
-    summary = str(extracted.get("summary") or anamnesis.summary or preferences.notes or "").strip()
-    resume_title = str(extracted.get("headline") or _resume_title_from_store(store) or anamnesis.headline or "?? ??????? ??????????").strip()
-    inferred_roles = _infer_roles_from_resume_text(resume_title, summary, preferences.notes)
-    detected_skills = list(extracted.get("skills") or anamnesis.primary_skills or _infer_skill_candidates(resume_title, summary, preferences.notes))
+    llm_analysis = _llm_resume_intake_analysis(store, extracted=extracted)
+    if llm_analysis.get("blocked"):
+        return str(llm_analysis.get("message") or "LLM сейчас недоступен, поэтому интейк лучше продолжить вручную.")
+    summary = str(llm_analysis.get("summary") or extracted.get("summary") or anamnesis.summary or preferences.notes or "").strip()
+    resume_title = str(llm_analysis.get("headline") or extracted.get("headline") or _resume_title_from_store(store) or anamnesis.headline or "не удалось определить").strip()
+    inferred_roles = list(llm_analysis.get("inferred_roles") or _infer_roles_from_resume_text(resume_title, summary, preferences.notes))
+    detected_skills = list(llm_analysis.get("core_skills") or extracted.get("skills") or anamnesis.primary_skills or _infer_skill_candidates(resume_title, summary, preferences.notes))
     detected_languages = list(extracted.get("languages") or anamnesis.languages)
     detected_links = list(extracted.get("links") or anamnesis.links)
     detected_experience = extracted.get("experience_years") if extracted.get("experience_years") is not None else anamnesis.experience_years
     topics = _missing_intake_topics(preferences, anamnesis)
 
     current_rules = [
-        f"- ??????? ????: {', '.join(preferences.target_titles) if preferences.target_titles else '???? ?????'}",
-        f"- Must-have ??????: {', '.join(preferences.required_skills) if preferences.required_skills else '???? ?????'}",
-        f"- ??????????? ??????: {', '.join(preferences.preferred_skills) if preferences.preferred_skills else '???? ?????'}",
-        f"- ???????: {', '.join(preferences.preferred_locations) if preferences.preferred_locations else '???? ?????'}",
-        f"- ?????? ????????: {_yes_no(preferences.remote_only)}",
-        f"- ??????????? ????????: {preferences.salary_min if preferences.salary_min else '?? ???????'}",
-        f"- ??????????? ????????: {', '.join(preferences.excluded_companies) if preferences.excluded_companies else '???? ?????'}",
-        f"- ????-?????: {', '.join(preferences.forbidden_keywords or preferences.excluded_keywords) if (preferences.forbidden_keywords or preferences.excluded_keywords) else '???? ?????'}",
+        f"- Целевые роли: {', '.join(preferences.target_titles) if preferences.target_titles else 'не заданы'}",
+        f"- Must-have навыки: {', '.join(preferences.required_skills) if preferences.required_skills else 'не заданы'}",
+        f"- Желательные навыки: {', '.join(preferences.preferred_skills) if preferences.preferred_skills else 'не заданы'}",
+        f"- Локации и формат: {', '.join(preferences.preferred_locations) if preferences.preferred_locations else 'не заданы'}",
+        f"- Только remote: {_yes_no(preferences.remote_only)}",
+        f"- Минимальная зарплата: {preferences.salary_min if preferences.salary_min else 'не задана'}",
+        f"- Исключённые компании: {', '.join(preferences.excluded_companies) if preferences.excluded_companies else 'не заданы'}",
+        f"- Стоп-слова: {', '.join(preferences.forbidden_keywords or preferences.excluded_keywords) if (preferences.forbidden_keywords or preferences.excluded_keywords) else 'не заданы'}",
     ]
     resume_facts = [
-        f"- ????????? ??????: {resume_title}",
-        f"- ????, ??????? ???????? ?? ??????: {', '.join(inferred_roles) if inferred_roles else '?? ??????? ???????? ????????'}",
-        f"- ????: {detected_experience if detected_experience else '?? ??????? ???????? ??????????'}",
-        f"- ?????????? ??????: {', '.join(detected_skills[:12]) if detected_skills else '????? ?????? ?? ????????'}",
-        f"- ?????: {', '.join(detected_languages) if detected_languages else '?? ????????'}",
-        f"- ??????: {', '.join(detected_links[:5]) if detected_links else '?? ???????'}",
+        f"- Заголовок резюме: {resume_title}",
+        f"- Роли из резюме: {', '.join(inferred_roles) if inferred_roles else 'не выделены'}",
+        f"- Опыт: {detected_experience if detected_experience else 'не удалось определить'}",
+        f"- Навыки: {', '.join(detected_skills[:12]) if detected_skills else 'почти ничего не выделено'}",
+        f"- Языки: {', '.join(detected_languages) if detected_languages else 'не заданы'}",
+        f"- Ссылки: {', '.join(detected_links[:5]) if detected_links else 'не заданы'}",
     ]
     if summary:
-        resume_facts.append(f"- ??????? summary ?? ??????: {summary[:350]}")
+        resume_facts.append(f"- Краткое резюме: {summary[:350]}")
 
     gaps: list[str] = []
     if inferred_roles and not preferences.target_titles:
-        gaps.append(f"? ?????? ??? ????? ???? {', '.join(inferred_roles)}, ?? ? ??????????? ???????? ??????? ???? ???? ??????")
+        gaps.append(f"В резюме уже видны роли: {', '.join(inferred_roles)}. Их стоит либо подтвердить, либо сузить.")
     if detected_skills and not preferences.required_skills and not preferences.preferred_skills:
-        gaps.append(f"? ?????? ? ???????? ????? ?????? {', '.join(detected_skills[:6])}, ?? must-have ? preferred skills ???? ?? ?????????")
+        gaps.append(f"Из резюме уже видны навыки: {', '.join(detected_skills[:6])}. Надо разделить их на must-have и nice-to-have.")
+    for item in list(llm_analysis.get("missing_topics") or [])[:6]:
+        gaps.append(str(item))
 
     parts = [
-        "? ??????? ????????? ????????? hh-?????? ? ??????? ??? ? ???????? ?????????.",
+        "Ниже сводка для ручного интейка по текущему hh-профилю.",
         "",
-        "??? ??? ??????? ???????? ?? ??????:",
+        "Что уже вытащили из резюме:",
         *resume_facts,
         "",
-        "??? ?????? ???????? ? ???????? ? ??????????:",
+        "Что уже зафиксировано в правилах:",
         *current_rules,
     ]
     if gaps:
-        parts.extend(["", "??? ??? ???? ??? ????? ??????????? ????? ?????? ? ?????????:", *[f"- {item}" for item in gaps]])
+        parts.extend(["", "Что ещё нужно уточнить:", *[f"- {item}" for item in gaps]])
 
     if topics:
-        parts.extend(["", "?????? ?? ????? ???????????? ??? ?????? ??????. ???????? ?????? ?? ??????????? ??? ?????? ??? ?????? ?????? ????."])
+        parts.extend(["", "Вопросы для пользователя:"])
         for index, (question, hint, example) in enumerate(topics, start=1):
-            parts.extend(["", f"{index}. {question}", f"????? ??? ?????: {hint}", example])
+            parts.extend(["", f"{index}. {question}", f"Почему спрашиваю: {hint}", example])
     else:
-        parts.extend(["", "??????????? ???? ??? ????????? ???????. ???????? ?????? ???? ?????????????? ?????????, ??????????? ? ????-???????, ??????? ??? ??? ? ????????.", '??????: "?? ???? ??????, ???????????? ? ???? ??? ?????? LLM/NLP-??????????; salary ???? 350k ??? ?????? ????????".'])
+        parts.extend(["", "Критичных пробелов почти не осталось. Можно только добрать тонкие предпочтения.", 'Пример ответа: "Не хочу CV-only, беру только LLM/NLP-роли, зарплата от 350k".'])
 
-    parts.extend(["", "????? ???????? ????????? ??????? ??? ???????? ??????? ?? ???????.", "???? ???????, ????? ????????? ????: ?????? ?? ????? C:\????\answers.md"])
+    parts.extend(["", "Ответы можно собрать в одном месте и потом импортировать.", "Файл для импорта: C:\\answers.md"])
     return "\n".join(parts)
 
 
@@ -443,6 +481,19 @@ def begin_intake_dialog(store: WorkspaceStore) -> dict[str, Any]:
         "dialog_state": dict(result.get("session") or {}),
         "message": str(result.get("message") or ""),
     }
+
+
+def restart_intake_dialog(store: WorkspaceStore) -> dict[str, Any]:
+    store.update_dashboard_state(
+        {
+            "intake_dialog": {},
+            "intake_dialog_completed": False,
+            "intake_dialog_completed_at": "",
+            "intake_confirmed": False,
+            "intake_confirmed_at": "",
+        }
+    )
+    return begin_intake_dialog(store)
 
 
 def continue_intake_dialog(store: WorkspaceStore, *, message: str) -> dict[str, Any]:
@@ -470,6 +521,9 @@ def _interview_context(store: WorkspaceStore) -> dict[str, Any]:
             "detected_languages": list(extracted.get("languages") or getattr(anamnesis, "languages", [])),
             "detected_links": list(extracted.get("links") or getattr(anamnesis, "links", [])),
             "detected_experience": extracted.get("experience_years") if extracted.get("experience_years") is not None else getattr(anamnesis, "experience_years", 0.0),
+            "detected_domains": list(extracted.get("domains") or getattr(anamnesis, "industries", [])),
+            "likely_constraints": [],
+            "missing_topics": [],
             "llm_blocked": True,
             "llm_message": str(llm_analysis.get("message") or ""),
         }
@@ -483,9 +537,56 @@ def _interview_context(store: WorkspaceStore) -> dict[str, Any]:
         "detected_languages": list(extracted.get("languages") or getattr(anamnesis, "languages", [])),
         "detected_links": list(extracted.get("links") or getattr(anamnesis, "links", [])),
         "detected_experience": extracted.get("experience_years") if extracted.get("experience_years") is not None else getattr(anamnesis, "experience_years", 0.0),
+        "detected_domains": list(llm_analysis.get("domains") or getattr(anamnesis, "industries", [])),
+        "likely_constraints": list(llm_analysis.get("likely_constraints") or []),
+        "missing_topics": list(llm_analysis.get("missing_topics") or []),
         "llm_analysis": llm_analysis,
         "llm_blocked": False,
     }
+
+
+def _has_meaningful_value(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, tuple, set)):
+        return any(str(item or "").strip() for item in value)
+    return bool(value)
+
+
+def _normalize_topic_key(value: str) -> str:
+    normalized = _normalize_text(value)
+    for source, target in (
+        ("рол", "target_titles"),
+        ("позици", "target_titles"),
+        ("must", "required_skills"),
+        ("skill", "required_skills"),
+        ("навык", "required_skills"),
+        ("стек", "required_skills"),
+        ("формат", "work_mode"),
+        ("remote", "work_mode"),
+        ("локац", "work_mode"),
+        ("географ", "work_mode"),
+        ("компан", "excluded_companies"),
+        ("работодат", "excluded_companies"),
+        ("стоп", "forbidden_keywords"),
+        ("исключ", "forbidden_keywords"),
+        ("salary", "salary_min"),
+        ("зарплат", "salary_min"),
+        ("домен", "industries"),
+        ("industry", "industries"),
+        ("nice", "preferred_skills"),
+        ("желател", "preferred_skills"),
+        ("language", "languages"),
+        ("язык", "languages"),
+        ("link", "links"),
+        ("github", "links"),
+        ("портфол", "links"),
+    ):
+        if source in normalized:
+            return target
+    return ""
 
 
 def _build_intake_interview_questions(store: WorkspaceStore) -> list[dict[str, Any]]:
@@ -493,98 +594,148 @@ def _build_intake_interview_questions(store: WorkspaceStore) -> list[dict[str, A
     anamnesis = store.load_anamnesis()
     context = _interview_context(store)
     questions: list[dict[str, Any]] = []
+    covered_topics: set[str] = set()
 
     def add_question(question_id: str, title: str, hint: str, example: str, *, prefill: str = "", importance: str = "critical") -> None:
+        if question_id in covered_topics:
+            return
+        if _has_meaningful_value(prefill):
+            covered_topics.add(question_id)
         questions.append(
             {
                 "id": question_id,
                 "title": title,
                 "hint": hint,
                 "example": example,
-                "prefill": prefill,
+                "prefill": str(prefill or "").strip(),
                 "importance": importance,
             }
         )
 
+    role_prefill = ", ".join(getattr(preferences, "target_titles", []) or context["inferred_roles"])
+    skill_prefill = ", ".join(context["detected_skills"][:6])
+    domains_prefill = ", ".join(context.get("detected_domains") or [])
+    role_example = (
+        f'Пример: "Оставить как есть: {role_prefill}" или "Сузить до {", ".join((context["inferred_roles"] or [])[:2])}".'
+        if role_prefill
+        else 'Пример: "Оставить как есть" или "Сузить до LLM Engineer и NLP Engineer".'
+    )
+    must_have_example = (
+        f'Пример: "must-have: {skill_prefill}" и отдельно отметить, что из этого обязательно.'
+        if skill_prefill
+        else 'Пример: "must-have: Python, NLP/LLM, сильная инженерная часть".'
+    )
+    domains_example = (
+        f'Пример: "интересно: {domains_prefill}; это можно оставить как базу и уточнить приоритеты".'
+        if domains_prefill
+        else 'Пример: "интересно: LLM products, AI infra; не хочу: госуха, чистая академия".'
+    )
+
     add_question(
         "target_titles",
-        "РљР°РєРёРµ СЂРѕР»Рё СЃС‡РёС‚Р°РµРј С†РµР»РµРІС‹РјРё РїСЂСЏРјРѕ СЃРµР№С‡Р°СЃ?",
-        "Р­С‚Рѕ РіР»Р°РІРЅС‹Р№ С„РёР»СЊС‚СЂ РґР»СЏ РїРѕРёСЃРєР° Рё РѕС†РµРЅРєРё РІР°РєР°РЅСЃРёР№.",
-        'РџСЂРёРјРµСЂ: "LLM Engineer, NLP Engineer, Research Scientist in NLP, Applied Scientist".',
-        prefill=", ".join(getattr(preferences, "target_titles", []) or context["inferred_roles"]),
+        "Подтверждаем целевые роли или хотите их сузить?",
+        "Резюме уже даёт базовое позиционирование. Здесь нужно только подтвердить его или поправить.",
+        role_example,
+        prefill=role_prefill,
     )
-    add_question(
-        "required_skills",
-        "Р§С‚Рѕ РґР»СЏ РІР°СЃ must-have РІРѕ РІР°РєР°РЅСЃРёРё?",
-        "Р•СЃР»Рё СЌС‚РѕРіРѕ РЅРµС‚, РІР°РєР°РЅСЃРёСЋ РѕР±С‹С‡РЅРѕ РЅРµ СЃС‚РѕРёС‚ РїСЂРѕРґРІРёРіР°С‚СЊ РґР°Р»СЊС€Рµ.",
-        'РџСЂРёРјРµСЂ: "Python, NLP/LLM, СЃРёР»СЊРЅС‹Р№ РёРЅР¶РµРЅРµСЂРЅС‹Р№ РёР»Рё РёСЃСЃР»РµРґРѕРІР°С‚РµР»СЊСЃРєРёР№ РєРѕРЅС‚РµРєСЃС‚".',
-        prefill=", ".join(getattr(preferences, "required_skills", []) or context["detected_skills"][:6]),
-    )
-    add_question(
-        "work_mode",
-        "РљР°РєРѕР№ С„РѕСЂРјР°С‚ СЂР°Р±РѕС‚С‹ РґРѕРїСѓСЃС‚РёРј?",
-        "Р­С‚Рѕ РєСЂРёС‚РёС‡РЅРѕ РґР»СЏ РѕС‚Р±РѕСЂР°: remote, РіРёР±СЂРёРґ, РѕС„РёСЃ, СЂРµР»РѕРєР°С†РёСЏ, СЃС‚СЂР°РЅС‹, С‡Р°СЃРѕРІС‹Рµ РїРѕСЏСЃР°.",
-        'РџСЂРёРјРµСЂ: "РўРѕР»СЊРєРѕ remote. Р РѕСЃСЃРёСЏ РёР»Рё РјРµР¶РґСѓРЅР°СЂРѕРґРЅС‹Рµ РєРѕРјР°РЅРґС‹. РџРµСЂРµРµР·Рґ РЅРµ РЅСѓР¶РµРЅ".',
-        prefill=", ".join(getattr(preferences, "preferred_locations", [])),
-    )
-    add_question(
-        "excluded_companies",
-        "РљР°РєРёРµ РєРѕРјРїР°РЅРёРё РёР»Рё С‚РёРїС‹ СЂР°Р±РѕС‚РѕРґР°С‚РµР»РµР№ С‚РѕС‡РЅРѕ РёСЃРєР»СЋС‡Р°РµРј?",
-        "Р­С‚Рѕ РЅСѓР¶РЅРѕ, С‡С‚РѕР±С‹ РЅРµ С‚СЂР°С‚РёС‚СЊ РІСЂРµРјСЏ РЅР° Р·Р°РІРµРґРѕРјРѕ РЅРµР¶РµР»Р°С‚РµР»СЊРЅС‹Рµ РІР°РєР°РЅСЃРёРё.",
-        'РџСЂРёРјРµСЂ: "РіРѕСЃСЃС‚СЂСѓРєС‚СѓСЂС‹, СѓРЅРёРІРµСЂСЃРёС‚РµС‚С‹, research institutes, РѕРєРѕР»РѕРіРѕСЃ РїСЂРѕРµРєС‚С‹".',
-        prefill=", ".join(getattr(preferences, "excluded_companies", [])),
-    )
-    add_question(
-        "forbidden_keywords",
-        "РљР°РєРёРµ СЃС‚РѕРї-СЃР»РѕРІР° Рё РїСЂРёР·РЅР°РєРё СЂРµР¶СѓС‚ РІР°РєР°РЅСЃРёСЋ СЃСЂР°Р·Сѓ?",
-        "Р­С‚Рѕ РїРѕРјРѕРіР°РµС‚ Р±С‹СЃС‚СЂРѕ РІС‹С‡РёС‰Р°С‚СЊ С€СѓРј РёР· Р±РѕР»СЊС€РѕР№ РІС‹РґР°С‡Рё.",
-        'РџСЂРёРјРµСЂ: "CV only, computer vision only, sales, РїСЂРµРїРѕРґР°РІР°РЅРёРµ, РіРѕСЃСЃР»СѓР¶Р±Р°".',
-        prefill=", ".join((getattr(preferences, "forbidden_keywords", []) or []) + (getattr(preferences, "excluded_keywords", []) or [])),
-    )
-    add_question(
-        "salary_min",
-        "РљР°РєР°СЏ РјРёРЅРёРјР°Р»СЊРЅР°СЏ РєРѕРјРїРµРЅСЃР°С†РёСЏ РёРјРµРµС‚ СЃРјС‹СЃР»?",
-        "РњРѕР¶РЅРѕ РЅР°Р·РІР°С‚СЊ РЅРёР¶РЅСЋСЋ РіСЂР°РЅРёС†Сѓ РёР»Рё РїСЂСЏРјРѕ СЃРєР°Р·Р°С‚СЊ, С‡С‚Рѕ Р¶РµСЃС‚РєРѕРіРѕ РїРѕСЂРѕРіР° РЅРµС‚.",
-        'РџСЂРёРјРµСЂ: "РћС‚ 350000 net" РёР»Рё "Р–РµСЃС‚РєРѕРіРѕ РїРѕСЂРѕРіР° РЅРµС‚".',
-        prefill=str(getattr(preferences, "salary_min", "") or ""),
-    )
-    add_question(
-        "industries",
-        "РљР°РєРёРµ РґРѕРјРµРЅС‹ РІР°Рј РёРЅС‚РµСЂРµСЃРЅС‹, Р° РєР°РєРёРµ РЅРµР¶РµР»Р°С‚РµР»СЊРЅС‹?",
-        "Р­С‚Рѕ РїРѕРјРѕРіР°РµС‚ Р°РіРµРЅС‚Сѓ РїРѕРЅРёРјР°С‚СЊ СЃРјС‹СЃР» РІР°РєР°РЅСЃРёРё, Р° РЅРµ С‚РѕР»СЊРєРѕ СЃР»РѕРІР° РІ РЅР°Р·РІР°РЅРёРё.",
-        'РџСЂРёРјРµСЂ: "РёРЅС‚РµСЂРµСЃРЅРѕ: LLM products, AI infra; РЅРµ С…РѕС‡Сѓ: РіРѕСЃСѓС…Р°, С‡РёСЃС‚Р°СЏ Р°РєР°РґРµРјРёСЏ".',
-        prefill=", ".join(getattr(anamnesis, "industries", [])),
-        importance="important",
-    )
-    add_question(
-        "preferred_skills",
-        "Р§С‚Рѕ Р¶РµР»Р°С‚РµР»СЊРЅРѕ, РЅРѕ РЅРµ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ?",
-        "Р­С‚Рѕ РїРѕРІС‹С€Р°РµС‚ РїСЂРёРѕСЂРёС‚РµС‚, РЅРѕ РЅРµ СЏРІР»СЏРµС‚СЃСЏ Р¶РµСЃС‚РєРёРј СЃС‚РѕРї-С„Р°РєС‚РѕСЂРѕРј.",
-        'РџСЂРёРјРµСЂ: "RAG, MLOps, production ML, agents".',
-        prefill=", ".join(getattr(preferences, "preferred_skills", [])),
-        importance="important",
-    )
-    add_question(
-        "languages",
-        "РљР°РєРёРµ СЏР·С‹РєРё СЂРµР°Р»СЊРЅРѕ СЂР°Р±РѕС‡РёРµ?",
-        "Р­С‚Рѕ РІР»РёСЏРµС‚ РЅР° РїРѕРёСЃРє, Р°РЅРєРµС‚С‹ Рё С‚РѕРЅ СЃРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅС‹С….",
-        'РџСЂРёРјРµСЂ: "Р СѓСЃСЃРєРёР№ СЃРІРѕР±РѕРґРЅРѕ, Р°РЅРіР»РёР№СЃРєРёР№ C1".',
-        prefill=", ".join(getattr(anamnesis, "languages", []) or context["detected_languages"]),
-        importance="optional",
-    )
-    add_question(
-        "links",
-        "РљР°РєРёРµ СЃСЃС‹Р»РєРё СЃС‚РѕРёС‚ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РІ РѕС‚РєР»РёРєР°С…?",
-        "GitHub, Scholar, LinkedIn, РїРѕСЂС‚С„РѕР»РёРѕ Рё СЃС‚Р°С‚СЊРё СѓСЃРёР»РёРІР°СЋС‚ РїСЂРѕС„РёР»СЊ.",
-        'РџСЂРёРјРµСЂ: "GitHub ..., Scholar ..., LinkedIn ...".',
-        prefill=", ".join(getattr(anamnesis, "links", []) or context["detected_links"]),
-        importance="optional",
-    )
+    if not _has_meaningful_value(getattr(preferences, "required_skills", [])):
+        add_question(
+            "required_skills",
+            "Что из уже видимого в профиле считаем must-have?",
+            "Нужно отделить обязательное от просто полезного, а не заново перечислять весь стек.",
+            must_have_example,
+            prefill=skill_prefill,
+        )
+    if not (_has_meaningful_value(getattr(preferences, "preferred_locations", [])) or getattr(preferences, "remote_only", False) or getattr(preferences, "allow_relocation", False)):
+        format_prefill = "; ".join([item for item in context["likely_constraints"] if any(token in _normalize_text(item) for token in ("remote", "удален", "офис", "гибрид", "релокац", "локац", "географ"))])
+        add_question(
+            "work_mode",
+            "Какой формат работы допустим?",
+            "Это один из немногих критичных пунктов, который обычно не достаётся уверенно из резюме.",
+            'Пример: "Только remote. Россия или международные команды. Переезд не нужен".',
+            prefill=format_prefill,
+        )
+    if not _has_meaningful_value(getattr(preferences, "excluded_companies", [])):
+        add_question(
+            "excluded_companies",
+            "Какие компании или типы работодателей точно исключаем?",
+            "Это нужно, чтобы не тратить время на заведомо нежелательные вакансии.",
+            'Пример: "госструктуры, университеты, research institutes, окологос проекты".',
+            prefill="",
+        )
+    if not (_has_meaningful_value(getattr(preferences, "forbidden_keywords", [])) or _has_meaningful_value(getattr(preferences, "excluded_keywords", []))):
+        add_question(
+            "forbidden_keywords",
+            "Какие стоп-слова и признаки режут вакансию сразу?",
+            "Это помогает быстро вычищать шум из большой выдачи.",
+            'Пример: "CV only, computer vision only, sales, преподавание, госслужба".',
+            prefill="",
+        )
+    if not _has_meaningful_value(getattr(preferences, "salary_min", None)):
+        add_question(
+            "salary_min",
+            "Какая минимальная компенсация имеет смысл?",
+            "Если жёсткого порога нет, это тоже нормальный ответ.",
+            'Пример: "От 350000 net" или "Жесткого порога нет".',
+            prefill="",
+        )
+    if not _has_meaningful_value(getattr(anamnesis, "industries", [])):
+        add_question(
+            "industries",
+            "Какие домены и типы задач вам реально интересны?",
+            "Это помогает агенту понимать смысл вакансии, а не только слова в названии.",
+            domains_example,
+            prefill=domains_prefill,
+            importance="important",
+        )
+    if not _has_meaningful_value(getattr(preferences, "preferred_skills", [])):
+        add_question(
+            "preferred_skills",
+            "Что желательно, но не обязательно?",
+            "Это повышает приоритет, но не является жестким стоп-фактором.",
+            'Пример: "RAG, MLOps, production ML, agents".',
+            prefill="",
+            importance="important",
+        )
+    if not _has_meaningful_value(getattr(anamnesis, "languages", [])):
+        add_question(
+            "languages",
+            "Какие языки реально рабочие?",
+            "Это влияет на поиск, анкеты и тон сопроводительных.",
+            'Пример: "Русский свободно, английский C1".',
+            prefill=", ".join(context["detected_languages"]),
+            importance="optional",
+        )
+    if not _has_meaningful_value(getattr(anamnesis, "links", [])):
+        add_question(
+            "links",
+            "Какие ссылки стоит использовать в откликах?",
+            "GitHub, Scholar, LinkedIn, портфолио и статьи усиливают профиль.",
+            'Пример: "GitHub ..., Scholar ..., LinkedIn ...".',
+            prefill=", ".join(context["detected_links"]),
+            importance="optional",
+        )
+
+    for topic in list(context.get("missing_topics") or [])[:6]:
+        text = str(topic or "").strip()
+        if not text:
+            continue
+        topic_key = _normalize_topic_key(text)
+        if topic_key in covered_topics:
+            continue
+        add_question(
+            topic_key or f"followup_{len(questions) + 1}",
+            text[0].upper() + text[1:] if text else "Что ещё нужно уточнить?",
+            "Этот вопрос агент добавил после разбора резюме и уже известных правил.",
+            'Пример: "Оставить как есть" или коротко уточнить нужное ограничение.',
+            importance="important" if topic_key else "optional",
+        )
+
     add_question(
         "extras",
-        "Р•СЃС‚СЊ Р»Рё РµС‰Рµ РїРѕР¶РµР»Р°РЅРёСЏ РёР»Рё С‚РѕРЅРєРёРµ РѕРіСЂР°РЅРёС‡РµРЅРёСЏ?",
-        "Р­С‚Рѕ СѓР¶Рµ РЅРµРѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РЅСЋР°РЅСЃС‹ РґР»СЏ СЂР°РЅР¶РёСЂРѕРІР°РЅРёСЏ Рё СЃРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅС‹С….",
-        'РџСЂРёРјРµСЂ: "РЅРµ С…РѕС‡Сѓ СЃР»РёС€РєРѕРј junior-СЂРѕР»Рё; РїРёСЃСЊРјРѕ РІСЃРµРіРґР° С‚РѕР»СЊРєРѕ РЅР° СЂСѓСЃСЃРєРѕРј".',
+        "Есть ли еще пожелания или тонкие ограничения?",
+        "Это финальный свободный вопрос на случай, если в резюме и правилах что-то важное ещё не отражено.",
+        'Пример: "не хочу слишком junior-роли; письмо всегда только на русском".',
         importance="optional",
     )
     return questions
@@ -594,26 +745,26 @@ def _format_intake_interview_question(session: dict[str, Any]) -> str:
     questions = list(session.get("questions") or [])
     index = int(session.get("step_index") or 0)
     if not questions:
-        return "Р’РѕРїСЂРѕСЃРѕРІ РЅРµ РѕСЃС‚Р°Р»РѕСЃСЊ. РњРѕР¶РЅРѕ Р·Р°РІРµСЂС€Р°С‚СЊ РёРЅС‚РµР№Рє."
+        return "Вопросов не осталось. Можно завершать интейк."
     question = questions[min(index, len(questions) - 1)]
     lines: list[str] = []
     if index == 0:
         context = dict(session.get("context") or {})
         lines.extend(
             [
-                "РЎРЅР°С‡Р°Р»Р° Р·Р°С„РёРєСЃРёСЂСѓРµРј РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ С‚СЂРµР±РѕРІР°РЅРёСЏ РєР°РЅРґРёРґР°С‚Р°. РџРѕРєР° СЌС‚РѕС‚ СЌС‚Р°Рї РЅРµ Р·Р°РІРµСЂС€РµРЅ, РїРѕРёСЃРє РІР°РєР°РЅСЃРёР№ Рё Р°РЅР°Р»РёР· РЅРµ Р·Р°РїСѓСЃРєР°СЋС‚СЃСЏ.",
+                "Сначала зафиксируем обязательные требования кандидата. Пока этот этап не завершен, поиск вакансий и анализ не запускаются.",
                 "",
-                "Р§С‚Рѕ СѓР¶Рµ СѓРґР°Р»РѕСЃСЊ РІС‹С‚Р°С‰РёС‚СЊ РёР· hh-СЂРµР·СЋРјРµ:",
-                f"- Р—Р°РіРѕР»РѕРІРѕРє: {context.get('resume_title') or 'РЅРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ'}",
-                f"- Р РѕР»Рё РёР· СЂРµР·СЋРјРµ: {', '.join(context.get('inferred_roles') or []) or 'РЅРµ СѓРґР°Р»РѕСЃСЊ СѓРІРµСЂРµРЅРЅРѕ РІС‹РґРµР»РёС‚СЊ'}",
-                f"- РќР°РІС‹РєРё РёР· СЂРµР·СЋРјРµ: {', '.join((context.get('detected_skills') or [])[:8]) or 'РїРѕС‡С‚Рё РЅРёС‡РµРіРѕ РЅРµ РІС‹РґРµР»РµРЅРѕ'}",
+                "Что уже удалось вытащить из hh-резюме:",
+                f"- Заголовок: {context.get('resume_title') or 'не удалось определить'}",
+                f"- Роли из резюме: {', '.join(context.get('inferred_roles') or []) or 'не удалось уверенно выделить'}",
+                f"- Навыки из резюме: {', '.join((context.get('detected_skills') or [])[:8]) or 'почти ничего не выделено'}",
                 "",
             ]
         )
-    lines.extend([f"Р’РѕРїСЂРѕСЃ {index + 1} РёР· {len(questions)}.", question["title"], f"РџРѕС‡РµРјСѓ СЃРїСЂР°С€РёРІР°СЋ: {question['hint']}"])
+    lines.extend([f"Вопрос {index + 1} из {len(questions)}.", question["title"], f"Почему спрашиваю: {question['hint']}"])
     if question.get("prefill"):
-        lines.append(f"Р§С‚Рѕ СѓР¶Рµ РІРёР¶Сѓ: {question['prefill']}")
-    lines.extend([question["example"], "РњРѕР¶РЅРѕ РѕС‚РІРµС‚РёС‚СЊ СЃРІРѕР±РѕРґРЅРѕ. Р•СЃР»Рё С‚РµРєСѓС‰РµРµ РїРѕРЅРёРјР°РЅРёРµ РїРѕРґС…РѕРґРёС‚, РЅР°РїРёС€РёС‚Рµ: РѕСЃС‚Р°РІРёС‚СЊ РєР°Рє РµСЃС‚СЊ. Р•СЃР»Рё РїСѓРЅРєС‚ РЅРµРІР°Р¶РµРЅ, РЅР°РїРёС€РёС‚Рµ: РїСЂРѕРїСѓСЃС‚РёС‚СЊ."])
+        lines.append(f"Что уже вижу: {question['prefill']}")
+    lines.extend([question["example"], "Можно ответить свободно. Если текущее понимание подходит, напишите: оставить как есть. Если пункт неважен, напишите: пропустить."])
     return "\n".join(lines)
 
 
@@ -624,7 +775,7 @@ def start_intake_interview(store: WorkspaceStore) -> dict[str, Any]:
             "action": "intake_interview",
             "status": "blocked",
             "session": {},
-            "message": str(context.get("llm_message") or "LLM недоступна для анализа резюме."),
+            "message": str(context.get("llm_message") or "LLM сейчас недоступен."),
         }
     session = {
         "active": True,
@@ -642,12 +793,12 @@ def start_intake_interview(store: WorkspaceStore) -> dict[str, Any]:
 
 def _answer_is_skip(value: str) -> bool:
     normalized = _normalize_text(value)
-    return normalized in {"РїСЂРѕРїСѓСЃС‚РёС‚СЊ", "skip", "РґР°Р»СЊС€Рµ", "РЅРµ Р·РЅР°СЋ", "Р±РµР· РѕС‚РІРµС‚Р°"}
+    return normalized in {"пропустить", "skip", "дальше", "не знаю", "без ответа"}
 
 
 def _answer_is_keep(value: str) -> bool:
     normalized = _normalize_text(value)
-    return normalized in {"РѕСЃС‚Р°РІРёС‚СЊ РєР°Рє РµСЃС‚СЊ", "РєР°Рє РµСЃС‚СЊ", "РїРѕРґС‚РІРµСЂР¶РґР°СЋ", "РѕРє", "РґР°"}
+    return normalized in {"оставить как есть", "как есть", "подтверждаю", "ок", "да"}
 
 
 def _payload_from_intake_interview(store: WorkspaceStore, session: dict[str, Any]) -> dict[str, Any]:
@@ -660,16 +811,16 @@ def _payload_from_intake_interview(store: WorkspaceStore, session: dict[str, Any
     remote_only = getattr(preferences, "remote_only", False)
     allow_relocation = getattr(preferences, "allow_relocation", False)
     if work_mode:
-        if any(token in normalized_work_mode for token in ("С‚РѕР»СЊРєРѕ СѓРґР°Р»", "remote only", "С‚РѕР»СЊРєРѕ remote")):
+        if any(token in normalized_work_mode for token in ("только удал", "remote only", "только remote")):
             remote_only = True
-        elif any(token in normalized_work_mode for token in ("РіРёР±СЂРёРґ", "РѕС„РёСЃ")):
+        elif any(token in normalized_work_mode for token in ("гибрид", "офис")):
             remote_only = False
-        if any(token in normalized_work_mode for token in ("СЂРµР»РѕРєР°С†", "РїРµСЂРµРµР·Рґ РІРѕР·РјРѕР¶РµРЅ", "РіРѕС‚РѕРІ Рє РїРµСЂРµРµР·РґСѓ")):
+        if any(token in normalized_work_mode for token in ("релокац", "переезд возможен", "готов к переезду")):
             allow_relocation = True
-        elif any(token in normalized_work_mode for token in ("Р±РµР· РїРµСЂРµРµР·РґР°", "РїРµСЂРµРµР·Рґ РЅРµ РЅСѓР¶РµРЅ", "РЅРµ РіРѕС‚РѕРІ Рє РїРµСЂРµРµР·РґСѓ")):
+        elif any(token in normalized_work_mode for token in ("без переезда", "переезд не нужен", "не готов к переезду")):
             allow_relocation = False
     notes_blocks = []
-    for key, label in (("work_mode", "Р¤РѕСЂРјР°С‚ СЂР°Р±РѕС‚С‹"), ("industries", "Р”РѕРјРµРЅС‹"), ("extras", "Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ РїРѕР¶РµР»Р°РЅРёСЏ")):
+    for key, label in (("work_mode", "Формат работы"), ("industries", "Домены"), ("extras", "Дополнительные пожелания")):
         value = str(answers.get(key) or "").strip()
         if value:
             notes_blocks.append(f"{label}: {value}")
@@ -720,7 +871,7 @@ def continue_intake_interview(store: WorkspaceStore, *, answer_text: str) -> dic
     completed_session = {**session, "active": False, "completed": True, "completed_at": utc_now_iso(), "updated_at": utc_now_iso()}
     rules_contract = build_user_rules_contract(store.load_preferences(), store.load_anamnesis(), store.load_dashboard_state())
     store.update_dashboard_state({"intake_dialog": completed_session, "intake_dialog_completed": True, "intake_dialog_completed_at": utc_now_iso(), "intake_confirmed": False, "intake_confirmed_at": "", "intake_user_rules_contract": rules_contract})
-    result["message"] = "Опрос завершен. Правила кандидата собраны. Проверьте краткую сводку и подтвердите правила, только после этого запущу поиск вакансий."
+    result["message"] = "Диалог завершён. Проверьте итоговые правила и подтвердите их перед запуском поиска."
     return result
 
 
@@ -746,29 +897,29 @@ def intake_interview_state(store: WorkspaceStore) -> dict[str, Any]:
 def _extract_section_map(raw_text: str) -> dict[str, str]:
     aliases = {
         "name": "full_name",
-        "РёРјСЏ": "full_name",
-        "С†РµР»РµРІР°СЏ СЂРѕР»СЊ": "target_titles",
-        "С†РµР»РµРІС‹Рµ СЂРѕР»Рё": "target_titles",
-        "С‡С‚Рѕ РёС‰Сѓ СЃРµР№С‡Р°СЃ": "notes",
-        "С‡С‚Рѕ С‚РѕС‡РЅРѕ РЅРµ С…РѕС‡Сѓ": "forbidden_keywords",
-        "must-have РЅР°РІС‹РєРё": "required_skills",
-        "must have РЅР°РІС‹РєРё": "required_skills",
-        "Р¶РµР»Р°С‚РµР»СЊРЅС‹Рµ РЅР°РІС‹РєРё": "preferred_skills",
-        "СЃРёР»СЊРЅС‹Рµ СЃС‚РѕСЂРѕРЅС‹": "primary_skills",
-        "СЃР»Р°Р±С‹Рµ СЃС‚РѕСЂРѕРЅС‹ / РїСЂРѕР±РµР»С‹": "secondary_skills",
-        "СЃР»Р°Р±С‹Рµ СЃС‚РѕСЂРѕРЅС‹": "secondary_skills",
-        "РѕРїС‹С‚ РїРѕ РіРѕРґР°Рј": "experience_years",
-        "РѕС‚СЂР°СЃР»Рё Рё РґРѕРјРµРЅС‹": "industries",
-        "РіРѕСЂРѕРґР° / СЃС‚СЂР°РЅС‹ / С‡Р°СЃРѕРІС‹Рµ РїРѕСЏСЃР°": "preferred_locations",
-        "СѓРґР°Р»РµРЅРєР° / РѕС„РёСЃ / РіРёР±СЂРёРґ": "work_mode",
-        "РјРёРЅРёРјР°Р»СЊРЅР°СЏ Р·Р°СЂРїР»Р°С‚Р°": "salary_min",
-        "РєРѕРјРїР°РЅРёРё Рё С‚РёРїС‹ РєРѕРјРїР°РЅРёР№, РєРѕС‚РѕСЂС‹Рµ РёСЃРєР»СЋС‡Р°СЋ": "excluded_companies",
-        "РєР»СЋС‡РµРІС‹Рµ СЃС‚РѕРї-СЃР»РѕРІР°": "forbidden_keywords",
-        "РѕР±СЂР°Р·РѕРІР°РЅРёРµ": "education",
-        "СЏР·С‹РєРё": "languages",
-        "СЃСЃС‹Р»РєРё": "links",
-        "РЅР°СЃРєРѕР»СЊРєРѕ РІР°Р¶РЅС‹ РєСЂРёС‚РµСЂРёРё": "weights",
-        "СЂР°Р·РІРµСЂРЅСѓС‚С‹Р№ СЂР°СЃСЃРєР°Р· Рѕ СЃРµР±Рµ Рё Рѕ Р¶РµР»Р°РµРјРѕР№ СЂР°Р±РѕС‚Рµ": "long_form",
+        "имя": "full_name",
+        "целевая роль": "target_titles",
+        "целевые роли": "target_titles",
+        "что ищу сейчас": "notes",
+        "что точно не хочу": "forbidden_keywords",
+        "must-have навыки": "required_skills",
+        "must have навыки": "required_skills",
+        "желательные навыки": "preferred_skills",
+        "сильные стороны": "primary_skills",
+        "слабые стороны / пробелы": "secondary_skills",
+        "слабые стороны": "secondary_skills",
+        "опыт по годам": "experience_years",
+        "отрасли и домены": "industries",
+        "города / страны / часовые пояса": "preferred_locations",
+        "удаленка / офис / гибрид": "work_mode",
+        "минимальная зарплата": "salary_min",
+        "компании и типы компаний, которые исключаю": "excluded_companies",
+        "ключевые стоп-слова": "forbidden_keywords",
+        "образование": "education",
+        "языки": "languages",
+        "ссылки": "links",
+        "насколько важны критерии": "weights",
+        "развернутый рассказ о себе и о желаемой работе": "long_form",
         "headline": "headline",
         "summary": "summary",
     }
@@ -793,30 +944,41 @@ def _extract_section_map(raw_text: str) -> dict[str, str]:
 
 def _payload_from_open_intake(raw_text: str) -> dict[str, Any]:
     sections = _extract_section_map(raw_text)
-    work_mode = sections.get("work_mode", "").lower()
+    parsed_patch = parse_rule_request(raw_text)
+    work_mode = str(sections.get("work_mode") or parsed_patch.get("notes") or "")
     notes = sections.get("notes", "")
     long_form = sections.get("long_form", "")
-    summary = sections.get("summary") or long_form[:2000]
-    headline = sections.get("headline") or ", ".join(_split_items(sections.get("target_titles", "")))[:180]
+    all_text = "\n".join(part for part in [notes, long_form, str(parsed_patch.get("notes") or "")] if part).strip()
+    detected_remote_only = _detect_remote_only(work_mode or all_text)
+    detected_allow_relocation = _detect_allow_relocation(work_mode or all_text)
+    extracted_locations = _split_items(sections.get("preferred_locations", "")) or _extract_locations_from_text(work_mode or all_text)
+    required_skills = _split_items(sections.get("required_skills", "")) or _split_items(parsed_patch.get("required_skills") or []) or _skills_from_text(all_text)
+    preferred_skills = _split_items(sections.get("preferred_skills", "")) or _skills_from_text(all_text)
+    forbidden_keywords = _split_items(sections.get("forbidden_keywords", "")) or _split_items(parsed_patch.get("forbidden_keywords") or [])
+    excluded_companies = _split_items(sections.get("excluded_companies", "")) or _split_items(parsed_patch.get("excluded_companies") or [])
+    target_titles = _split_items(sections.get("target_titles", "")) or _parse_free_text_titles(all_text, [])
+    summary = sections.get("summary") or long_form[:2000] or all_text[:2000]
+    headline = sections.get("headline") or ", ".join(target_titles[:4])[:180]
+    salary_min = _parse_int(sections.get("salary_min")) or _parse_int(parsed_patch.get("salary_min"))
     payload: dict[str, Any] = {
         "full_name": sections.get("full_name", ""),
-        "target_titles": _split_items(sections.get("target_titles", "")),
-        "required_skills": _split_items(sections.get("required_skills", "")),
-        "preferred_skills": _split_items(sections.get("preferred_skills", "")),
-        "preferred_locations": _split_items(sections.get("preferred_locations", "")),
-        "excluded_companies": _split_items(sections.get("excluded_companies", "")),
-        "excluded_keywords": _split_items(sections.get("forbidden_keywords", "")),
-        "forbidden_keywords": _split_items(sections.get("forbidden_keywords", "")),
-        "salary_min": _parse_int(sections.get("salary_min")),
-        "remote_only": any(token in work_mode for token in ("remote", "home office", "СѓРґР°Р»РµРЅ", "СѓРґР°Р»С‘РЅ")),
-        "allow_relocation": any(token in work_mode for token in ("relocation", "РїРµСЂРµРµР·Рґ", "СЂРµР»РѕРєР°С†")),
-        "notes": "\n\n".join(part for part in [notes, sections.get("weights", ""), long_form] if part).strip(),
+        "target_titles": _unique_casefold(target_titles),
+        "required_skills": _unique_casefold(required_skills),
+        "preferred_skills": _unique_casefold(preferred_skills),
+        "preferred_locations": _unique_casefold(extracted_locations),
+        "excluded_companies": _unique_casefold(excluded_companies),
+        "excluded_keywords": _unique_casefold(forbidden_keywords),
+        "forbidden_keywords": _unique_casefold(forbidden_keywords),
+        "salary_min": salary_min,
+        "remote_only": bool(parsed_patch.get("remote_only")) if parsed_patch.get("remote_only") is not None else bool(detected_remote_only),
+        "allow_relocation": bool(detected_allow_relocation),
+        "notes": _compose_intake_notes(notes, sections.get("weights", ""), long_form, str(parsed_patch.get("notes") or "")),
         "headline": headline,
         "summary": summary,
         "experience_years": _parse_float(sections.get("experience_years"), 0.0),
-        "primary_skills": _split_items(sections.get("primary_skills", "")),
+        "primary_skills": _split_items(sections.get("primary_skills", "")) or _unique_casefold(required_skills + preferred_skills),
         "secondary_skills": _split_items(sections.get("secondary_skills", "")),
-        "industries": _split_items(sections.get("industries", "")),
+        "industries": _split_items(sections.get("industries", "")) or _extract_industries_from_text(all_text),
         "education": _split_items(sections.get("education", "")),
         "languages": _split_items(sections.get("languages", "")),
         "links": _split_items(sections.get("links", "")),
@@ -947,8 +1109,8 @@ def run_intake(store: WorkspaceStore, *, interactive: bool = False, payload: dic
         store.update_dashboard_state(
             {
                 "intake_dialog_completed": True,
-                "intake_confirmed": False,
-                "intake_confirmed_at": "",
+                "intake_confirmed": True,
+                "intake_confirmed_at": utc_now_iso(),
                 "intake_user_rules_contract": build_user_rules_contract(preferences, anamnesis, store.load_dashboard_state()),
             }
         )
@@ -956,6 +1118,15 @@ def run_intake(store: WorkspaceStore, *, interactive: bool = False, payload: dic
         store.record_event("intake", "Saved onboarding questionnaire from dashboard.")
     else:
         preferences, anamnesis = IntakeAgent(store).ensure(interactive=interactive)
+        if not interactive:
+            store.update_dashboard_state(
+                {
+                    "intake_dialog_completed": True,
+                    "intake_confirmed": True,
+                    "intake_confirmed_at": utc_now_iso(),
+                    "intake_user_rules_contract": build_user_rules_contract(preferences, anamnesis, store.load_dashboard_state()),
+                }
+            )
     store.touch_dashboard_timestamp("last_intake_at")
     return {
         "action": "intake",
@@ -970,7 +1141,7 @@ def confirm_intake_rules(store: WorkspaceStore) -> dict[str, Any]:
     anamnesis = store.load_anamnesis()
     readiness = evaluate_intake_readiness(preferences, anamnesis, store.load_dashboard_state())
     if not readiness.get("dialog_completed"):
-        raise RuntimeError("Сначала завершите обязательный intake-диалог.")
+        raise RuntimeError("Сначала завершите intake-диалог, потом подтверждайте правила.")
     store.update_dashboard_state(
         {
             "intake_confirmed": True,
@@ -978,11 +1149,11 @@ def confirm_intake_rules(store: WorkspaceStore) -> dict[str, Any]:
             "intake_user_rules_contract": build_user_rules_contract(preferences, anamnesis, store.load_dashboard_state()),
         }
     )
-    store.record_event("intake", "Пользователь подтвердил итоговые правила поиска.")
+    store.record_event("intake", "Правила intake подтверждены пользователем.")
     return {
         "action": "confirm_intake",
         "status": "confirmed",
-        "message": "Правила подтверждены. Теперь можно запускать поиск вакансий и анализ.",
+        "message": "Правила подтверждены. Можно переходить к синхронизации профиля, анализу и откликам.",
     }
 
 
@@ -990,7 +1161,7 @@ def run_intake_from_text(store: WorkspaceStore, *, raw_text: str, source_name: s
     payload = _payload_from_open_intake(raw_text)
     result = run_intake(store, interactive=False, payload=payload)
     store.update_dashboard_state({"last_intake_source": source_name, "last_intake_raw_text": str(raw_text or "")[:12000]})
-    result["message"] = "РџРѕРґСЂРѕР±РЅС‹Р№ РёРЅС‚РµР№Рє СЃРѕС…СЂР°РЅРµРЅ. РџСЂР°РІРёР»Р° РїРѕРёСЃРєР° РїРµСЂРµСЃРѕР±СЂР°РЅС‹ РёР· РІР°С€РёС… РѕС‚РІРµС‚РѕРІ."
+    result["message"] = "Подробный интейк сохранен. Правила поиска пересобраны из ваших ответов."
     result["source_name"] = source_name
     return result
 
@@ -1035,37 +1206,57 @@ def run_analyze(store: WorkspaceStore, *, limit: int = 120, interactive: bool = 
         "assessments": len(assessments),
         "refresh_result": refresh_result,
         "rules_synced": True,
-        "message": f"Processed {len(assessments)} vacancies. Source: {refresh_message}. РђРІС‚РѕСЃРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅС‹С… РґР»СЏ РїРѕРґС…РѕРґСЏС‰РёС…: {cover_letter_stats['generated']}.",
+        "message": f"Processed {len(assessments)} vacancies. Source: {refresh_message}. Автосопроводительных для подходящих: {cover_letter_stats['generated']}.",
         "hh_context": hh_context,
         "cover_letter_stats": cover_letter_stats,
     }
 
 
 def run_resume(store: WorkspaceStore) -> dict[str, Any]:
-    _require_intake(store)
+    preferences = store.load_preferences() or UserPreferences()
+    anamnesis = store.load_anamnesis() or Anamnesis()
     sync_result = HHResumeProfileSync(store).sync_selected_resume()
+    llm_analysis: dict[str, Any] = {}
+    extracted = sync_result.get("extracted")
+    if isinstance(extracted, dict) and extracted:
+        llm_analysis = _llm_resume_intake_analysis(store, extracted=extracted)
+    preferences = store.load_preferences() or preferences
+    anamnesis = store.load_anamnesis() or anamnesis
     draft, markdown = ResumeAgent(store).build_resume_draft()
-    preferences, anamnesis = _require_intake(store)
     rules_markdown = _compose_rules_markdown(store, preferences, anamnesis)
     store.save_selection_rules(rules_markdown)
-    store.touch_dashboard_timestamp("last_resume_draft_at", extra={"last_rules_rebuilt_at": utc_now_iso()})
-    _mark_analysis_stale(store, "Р§РµСЂРЅРѕРІРёРє СЂРµР·СЋРјРµ Рё РїСЂР°РІРёР»Р° РїСЂРѕС„РёР»СЏ РѕР±РЅРѕРІР»РµРЅС‹. Р—Р°РїСѓСЃС‚РёС‚Рµ Р°РЅР°Р»РёР· Р·Р°РЅРѕРІРѕ, С‡С‚РѕР±С‹ РїРµСЂРµСЃС‡РёС‚Р°С‚СЊ РІР°РєР°РЅСЃРёРё.")
+    dashboard_state = store.load_dashboard_state()
+    resume_extra: dict[str, Any] = {"last_rules_rebuilt_at": utc_now_iso()}
+    if sync_result.get("status") in {"updated", "no_changes"} and not bool(dashboard_state.get("intake_confirmed")):
+        resume_extra.update(
+            {
+                "intake_dialog": {},
+                "intake_dialog_completed": False,
+                "intake_dialog_completed_at": "",
+                "intake_confirmed": False,
+                "intake_confirmed_at": "",
+                "intake_user_rules_contract": {},
+            }
+        )
+    store.touch_dashboard_timestamp("last_resume_draft_at", extra=resume_extra)
+    _mark_analysis_stale(store, "Профиль и правила обновились. Для свежей очереди вакансий запустите анализ заново.")
     sync_message = str(sync_result.get("message") or "")
     change_count = len(list(sync_result.get("changes") or []))
     if sync_result.get("status") == "updated":
-        message = f"РџСЂРѕС„РёР»СЊ СЃРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°РЅ СЃ hh.ru, РЅР°Р№РґРµРЅРѕ РёР·РјРµРЅРµРЅРёР№: {change_count}. Р§РµСЂРЅРѕРІРёРє Рё РїСЂР°РІРёР»Р° РѕР±РЅРѕРІР»РµРЅС‹. Р—Р°РїСѓСЃС‚РёС‚Рµ Р°РЅР°Р»РёР· Р·Р°РЅРѕРІРѕ."
+        message = f"Профиль синхронизирован с hh.ru, найдено изменений: {change_count}. Черновик резюме и правила поиска обновлены."
     elif sync_result.get("status") == "no_changes":
-        message = "Р’С‹Р±СЂР°РЅРЅРѕРµ СЂРµР·СЋРјРµ hh.ru РїСЂРѕРІРµСЂРµРЅРѕ, РёР·РјРµРЅРµРЅРёР№ РІ РїСЂРѕС„РёР»Рµ РЅРµ РЅР°Р№РґРµРЅРѕ. Р§РµСЂРЅРѕРІРёРє РѕР±РЅРѕРІР»РµРЅ, РјРѕР¶РЅРѕ Р·Р°РїСѓСЃРєР°С‚СЊ Р°РЅР°Р»РёР· Р·Р°РЅРѕРІРѕ."
+        message = "Профиль hh.ru уже был актуален. Черновик резюме и правила поиска всё равно пересобраны."
     elif sync_result.get("status") == "failed":
-        message = f"Р§РµСЂРЅРѕРІРёРє РѕР±РЅРѕРІР»РµРЅ, РЅРѕ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ РїСЂРѕС„РёР»СЏ hh.ru Р·Р°РІРµСЂС€РёР»Р°СЃСЊ РѕС€РёР±РєРѕР№: {sync_message}."
+        message = f"Не удалось синхронизировать профиль с hh.ru: {sync_message}."
     else:
-        message = "Р§РµСЂРЅРѕРІРёРє РѕР±РЅРѕРІР»РµРЅ, РїСЂР°РІРёР»Р° РїРµСЂРµСЃРѕР±СЂР°РЅС‹ РёР· С‚РµРєСѓС‰РµРіРѕ РїСЂРѕС„РёР»СЏ. РњРѕР¶РЅРѕ Р·Р°РїСѓСЃРєР°С‚СЊ Р°РЅР°Р»РёР· Р·Р°РЅРѕРІРѕ."
+        message = "Черновик резюме и правила поиска обновлены."
     return {
         "action": "resume",
         "draft": draft.to_dict(),
         "markdown": markdown,
         "rules_ready": True,
         "sync_result": sync_result,
+        "llm_analysis": llm_analysis,
         "message": message,
     }
 
@@ -1080,29 +1271,56 @@ def run_plan_filters(store: WorkspaceStore) -> dict[str, Any]:
         llm_backend=runtime_settings.llm_backend,
     ).build()
     store.save_filter_plan(plan)
+    if plan.get("llm_planner_status") == "ok" and plan.get("planner_backend") != "rules":
+        store.update_dashboard_state({"llm_gate": {}})
     store.record_event("filters", "Updated hh.ru filter plan from the current profile.", details=plan)
     return {
         "action": "plan_filters",
         "payload": plan,
-        "message": f"РџР»Р°РЅ С„РёР»СЊС‚СЂРѕРІ РѕР±РЅРѕРІР»РµРЅ. РџРѕРёСЃРєРѕРІС‹Р№ С‚РµРєСЃС‚: {plan.get('search_text') or 'РЅРµ Р·Р°РґР°РЅ'}.",
+        "message": f"План фильтров обновлен. Поисковый текст: {plan.get('search_text') or 'не задан'}.",
+    }
+
+
+def run_refresh_vacancies(store: WorkspaceStore, *, limit: int = 0) -> dict[str, Any]:
+    _require_intake(store)
+    _require_rules(store)
+    hh_context = ensure_hh_context(store, auto_login=True)
+    if hh_context["status"] != "ready":
+        return {"action": "refresh_vacancies", **hh_context, "status": "blocked"}
+    result = HHVacancyRefresher(store).refresh(limit=limit)
+    _mark_analysis_stale(store, "Источник вакансий обновлён. Запустите анализ заново, чтобы пересчитать оценки.")
+    return {
+        "action": "refresh_vacancies",
+        "status": str(result.get("status") or "unknown"),
+        "payload": result,
+        "message": str(result.get("message") or "Обновление вакансий завершено."),
+        "hh_context": hh_context,
     }
 
 
 def select_resume_for_search(store: WorkspaceStore, *, resume_id: str) -> dict[str, Any]:
     selected_resume_id = str(resume_id or "").strip()
     store.save_selected_resume_id(selected_resume_id)
-    store.touch_dashboard_timestamp("last_resume_selection_at")
-    _mark_analysis_stale(store, "Р’С‹Р±СЂР°РЅРЅРѕРµ СЂРµР·СЋРјРµ hh.ru РёР·РјРµРЅРёР»РѕСЃСЊ. Р—Р°РїСѓСЃС‚РёС‚Рµ Р°РЅР°Р»РёР· Р·Р°РЅРѕРІРѕ, С‡С‚РѕР±С‹ РїРѕР»СѓС‡РёС‚СЊ СЃРІРµР¶СѓСЋ РѕС‡РµСЂРµРґСЊ РІР°РєР°РЅСЃРёР№.")
+    store.touch_dashboard_timestamp(
+        "last_resume_selection_at",
+        extra={
+            "resume_intake_analysis": {},
+            "resume_intake_analysis_marker": "",
+            "resume_intake_analysis_error": "",
+            "llm_gate": {},
+        },
+    )
+    _mark_analysis_stale(store, "Выбранное резюме hh.ru изменилось. Запустите анализ заново, чтобы получить свежую очередь вакансий.")
     store.record_event(
         "hh-resume-selection",
-        f"Р’С‹Р±СЂР°РЅРѕ СЂРµР·СЋРјРµ hh.ru РґР»СЏ live search: {selected_resume_id or 'СЃР±СЂРѕС€РµРЅРѕ'}.",
+        f"Выбрано резюме hh.ru для live search: {selected_resume_id or 'сброшено'}.",
         details={"selected_resume_id": selected_resume_id},
     )
     return {
         "action": "select-resume",
         "selected_resume_id": selected_resume_id,
         "analysis_stale": True,
-        "message": "Р’С‹Р±РѕСЂ СЂРµР·СЋРјРµ СЃРѕС…СЂР°РЅРµРЅ. Р—Р°РїСѓСЃС‚РёС‚Рµ Р°РЅР°Р»РёР· Р·Р°РЅРѕРІРѕ, С‡С‚РѕР±С‹ СЃРѕР±СЂР°С‚СЊ РІР°РєР°РЅСЃРёРё РїРѕ СЌС‚РѕРјСѓ СЂРµР·СЋРјРµ.",
+        "message": "Выбор резюме сохранен. Запустите анализ заново, чтобы собрать вакансии по этому резюме.",
     }
 
 
@@ -1112,7 +1330,7 @@ def select_hh_account(store: WorkspaceStore, *, account_key: str) -> dict[str, A
         return {
             "action": "select-account",
             "account_key": normalized,
-            "message": "Р­С‚РѕС‚ hh-Р°РєРєР°СѓРЅС‚ СѓР¶Рµ Р°РєС‚РёРІРµРЅ.",
+            "message": "Этот hh-аккаунт уже активен.",
         }
     accounts = {str(item.get("account_key") or ""): item for item in store.load_accounts()}
     if normalized not in accounts:
@@ -1120,6 +1338,15 @@ def select_hh_account(store: WorkspaceStore, *, account_key: str) -> dict[str, A
     store.set_active_account(normalized)
     switched_store = WorkspaceStore(store.project_root, account_key=normalized)
     switched_store.save_account_profile({**accounts[normalized], "updated_at": utc_now_iso()})
+    selected_resume_id = switched_store.load_selected_resume_id()
+    hh_resumes = switched_store.load_hh_resumes()
+    if not selected_resume_id and len(hh_resumes) == 1:
+        selected_resume_id = str(hh_resumes[0].get("resume_id") or "").strip()
+        if selected_resume_id:
+            switched_store.save_selected_resume_id(selected_resume_id)
+    profile_sync: dict[str, Any] = {}
+    if selected_resume_id:
+        profile_sync = HHResumeProfileSync(switched_store).sync_selected_resume()
     switched_store.record_event(
         "hh-account",
         f"Switched active hh account to {accounts[normalized].get('display_name') or normalized}.",
@@ -1128,7 +1355,39 @@ def select_hh_account(store: WorkspaceStore, *, account_key: str) -> dict[str, A
     return {
         "action": "select-account",
         "account_key": normalized,
-        "message": f"РђРєРєР°СѓРЅС‚ hh.ru РїРµСЂРµРєР»СЋС‡РµРЅ: {accounts[normalized].get('display_name') or normalized}.",
+        "selected_resume_id": selected_resume_id,
+        "profile_sync": profile_sync,
+        "message": f"Аккаунт hh.ru переключен: {accounts[normalized].get('display_name') or normalized}.",
+    }
+
+
+def delete_hh_account(store: WorkspaceStore, *, account_key: str) -> dict[str, Any]:
+    result = store.delete_account_profile(account_key)
+    deleted_key = str(result.get("deleted_account_key") or "")
+    deleted_name = str(result.get("deleted_display_name") or deleted_key)
+    next_account_key = str(result.get("next_account_key") or "default")
+    active_changed = bool(result.get("active_changed"))
+    message = (
+        f"Профиль hh.ru удалён: {deleted_name}. Активный профиль переключён на {next_account_key}."
+        if active_changed
+        else f"Профиль hh.ru удалён: {deleted_name}."
+    )
+    next_store = WorkspaceStore(store.project_root)
+    next_store.record_event(
+        "hh-account",
+        message,
+        details={
+            "deleted_account_key": deleted_key,
+            "next_account_key": next_account_key,
+            "active_changed": active_changed,
+        },
+    )
+    return {
+        "action": "delete-account",
+        "deleted_account_key": deleted_key,
+        "next_account_key": next_account_key,
+        "active_changed": active_changed,
+        "message": message,
     }
 
 
@@ -1141,7 +1400,12 @@ def run_plan_apply(store: WorkspaceStore, *, vacancy_id: str | None = None) -> d
         _ensure_cover_letter_draft(store, vacancy_id=str(vacancy_id), force=False)
     payload = ApplicationAgent(store).build_plan(vacancy_id=vacancy_id)
     store.touch_dashboard_timestamp("last_apply_plan_at")
-    return {"action": "plan_apply", "payload": payload}
+    vacancy_title = str(((payload.get("vacancy") or {}).get("title") or "выбранной вакансии"))
+    return {
+        "action": "plan_apply",
+        "payload": payload,
+        "message": f"План отклика собран для вакансии «{vacancy_title}».",
+    }
 
 
 def save_cover_letter_override(store: WorkspaceStore, *, vacancy_id: str, cover_letter: str) -> dict[str, Any]:
@@ -1154,13 +1418,13 @@ def save_cover_letter_override(store: WorkspaceStore, *, vacancy_id: str, cover_
         apply_plan["cover_letter_preview"] = str(cover_letter or "")
         apply_plan["cover_letter_enabled"] = bool(str(cover_letter or "").strip())
         store.save_apply_plan(apply_plan)
-    store.record_event("cover-letter", "РЎРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРёСЃСЊРјРѕ РѕР±РЅРѕРІР»РµРЅРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј.", details={"vacancy_id": normalized_vacancy_id})
-    _mark_analysis_stale(store, "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РѕР±РЅРѕРІРёР» СЃРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРёСЃСЊРјРѕ РґР»СЏ РѕС‚РєР»РёРєР°.")
+    store.record_event("cover-letter", "Сопроводительное письмо обновлено пользователем.", details={"vacancy_id": normalized_vacancy_id})
+    _mark_analysis_stale(store, "Пользователь обновил сопроводительное письмо для отклика.")
     return {
         "action": "save_cover_letter",
         "vacancy_id": normalized_vacancy_id,
         "cover_letter_enabled": bool(str(cover_letter or "").strip()),
-        "message": "РЎРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРёСЃСЊРјРѕ СЃРѕС…СЂР°РЅРµРЅРѕ.",
+        "message": "Сопроводительное письмо сохранено.",
     }
 
 
@@ -1170,14 +1434,63 @@ def run_apply_submit(store: WorkspaceStore, *, vacancy_id: str, cover_letter: st
     elif not store.load_cover_letter_draft(vacancy_id).strip():
         _ensure_cover_letter_draft(store, vacancy_id=vacancy_id, force=False)
     result = apply_to_vacancy(store, vacancy_id=vacancy_id, cover_letter_override=cover_letter)
+    status = str(((result.get("result") or {}).get("status") or "")).lower()
+    relogin_result: dict[str, Any] | None = None
+    if status == "needs_login":
+        relogin_result = run_hh_login(store.project_root)
+        if relogin_result.get("status") == "completed":
+            result = apply_to_vacancy(store, vacancy_id=vacancy_id, cover_letter_override=cover_letter)
+            status = str(((result.get("result") or {}).get("status") or "")).lower()
+    result_payload = dict(result.get("result") or {})
+    runtime_reason = str(result_payload.get("reason") or "").strip().lower()
+    runtime_message = str(result_payload.get("message") or "").strip()
+    if runtime_reason == "playwright_launch_denied" or "Failed to start Playwright browser" in runtime_message:
+        store.update_dashboard_state(
+            {
+                "local_playwright_runtime_ready": False,
+                "local_playwright_runtime_message": runtime_message or "Локальный Playwright-браузер недоступен в текущем окружении.",
+                "local_playwright_runtime_failed_at": utc_now_iso(),
+            }
+        )
+    elif status in {"completed", "completed_without_confirmation", "completed_without_cover_letter", "already_applied"}:
+        store.update_dashboard_state(
+            {
+                "local_playwright_runtime_ready": True,
+                "local_playwright_runtime_message": "",
+                "local_playwright_runtime_failed_at": "",
+            }
+        )
     _bump_apply_counter(store, 1)
     store.touch_dashboard_timestamp("last_apply_submit_at")
-    store.record_event("apply", "Р—Р°РїСѓС‰РµРЅ РѕС‚РєР»РёРє РёР· РґР°С€Р±РѕСЂРґР°.", details={"vacancy_id": vacancy_id, "status": ((result.get("result") or {}).get("status") or "")})
-    return {
+    repair_result = None
+    if _status_requires_repair(status):
+        repair_result = run_plan_repair(
+            store,
+            action="apply_submit",
+            payload={"vacancy_id": vacancy_id, "result": dict(result.get("result") or {})},
+            error=status or "apply_flow_requires_follow_up",
+            run_agent=True,
+        )
+    store.record_event(
+        "apply",
+        "Запущен отклик из дашборда.",
+        details={
+            "vacancy_id": vacancy_id,
+            "status": ((result.get("result") or {}).get("status") or ""),
+            "relogin_status": (relogin_result or {}).get("status", ""),
+            "repair_triggered": bool(repair_result),
+        },
+    )
+    payload = {
         "action": "apply_submit",
         "payload": result,
-        "message": str(((result.get("result") or {}).get("message") or "РћС‚РєР»РёРє РѕР±СЂР°Р±РѕС‚Р°РЅ.")),
+        "message": str(((result.get("result") or {}).get("message") or "Отклик обработан.")),
     }
+    if relogin_result:
+        payload["relogin_result"] = relogin_result
+    if repair_result:
+        payload["repair"] = repair_result
+    return payload
 
 
 def update_vacancy_feedback(store: WorkspaceStore, *, vacancy_id: str, decision: str) -> dict[str, Any]:
@@ -1201,9 +1514,9 @@ def update_vacancy_feedback(store: WorkspaceStore, *, vacancy_id: str, decision:
     target.subcategory = f"user_{decision_key}"
     target.recommended_action = "user_override"
     target.review_notes = {
-        "fit": "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІСЂСѓС‡РЅСѓСЋ РїРµСЂРµРІС‘Р» РІР°РєР°РЅСЃРёСЋ РІ В«РџРѕРґС…РѕРґРёС‚В». РќСѓР¶РµРЅ Р±С‹СЃС‚СЂС‹Р№ РѕС‚РєР»РёРє РёР»Рё С…РѕС‚СЏ Р±С‹ РїСЂРѕРІРµСЂРєР° Р°РІС‚РѕСЃРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРіРѕ.",
-        "doubt": "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІСЂСѓС‡РЅСѓСЋ РїРµСЂРµРІС‘Р» РІР°РєР°РЅСЃРёСЋ РІ В«РЎРѕРјРЅРµРІР°СЋСЃСЊВ». РќСѓР¶РµРЅ РєРѕСЂРѕС‚РєРёР№ РїРѕРІС‚РѕСЂРЅС‹Р№ СЂР°Р·Р±РѕСЂ.",
-        "no_fit": "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІСЂСѓС‡РЅСѓСЋ РёСЃРєР»СЋС‡РёР» РІР°РєР°РЅСЃРёСЋ РёР· РїСЂРёРѕСЂРёС‚РµС‚РЅС‹С…. РћС‚РєР»РёРє РїРѕ РЅРµР№ СЃРµР№С‡Р°СЃ РЅРµ РЅСѓР¶РµРЅ.",
+        "fit": "Пользователь вручную перевёл вакансию в «Подходит». Нужен быстрый отклик или хотя бы проверка автосопроводительного.",
+        "doubt": "Пользователь вручную перевёл вакансию в «Сомневаюсь». Нужен короткий повторный разбор.",
+        "no_fit": "Пользователь вручную исключил вакансию из приоритетных. Отклик по ней сейчас не нужен.",
     }[decision_key]
     target.explanation = target.review_notes
     store.save_assessments(assessments)
@@ -1214,7 +1527,7 @@ def update_vacancy_feedback(store: WorkspaceStore, *, vacancy_id: str, decision:
             "decided_at": utc_now_iso(),
         },
     )
-    store.record_event("vacancy-feedback", "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РёР·РјРµРЅРёР» СЃС‚Р°С‚СѓСЃ РІР°РєР°РЅСЃРёРё.", details={"vacancy_id": vacancy_key, "decision": decision_key})
+    store.record_event("vacancy-feedback", "Пользователь изменил статус вакансии.", details={"vacancy_id": vacancy_key, "decision": decision_key})
     cover_letter_generated = False
     if decision_key == "fit":
         cover_letter_generated = bool(_ensure_cover_letter_draft(store, vacancy_id=vacancy_key, force=True))
@@ -1223,7 +1536,7 @@ def update_vacancy_feedback(store: WorkspaceStore, *, vacancy_id: str, decision:
         "vacancy_id": vacancy_key,
         "decision": decision_key,
         "cover_letter_generated": cover_letter_generated,
-        "message": f"РЎС‚Р°С‚СѓСЃ РІР°РєР°РЅСЃРёРё РѕР±РЅРѕРІР»РµРЅ: {decision_key}." + (" РЎРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРѕРґРіРѕС‚РѕРІР»РµРЅРѕ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё." if cover_letter_generated else ""),
+        "message": f"Статус вакансии обновлен: {decision_key}." + (" Сопроводительное подготовлено автоматически." if cover_letter_generated else ""),
     }
 
 
@@ -1242,7 +1555,7 @@ def run_apply_batch(
     _, current_count = _today_apply_counter(store)
     remaining_budget = max(0, int(daily_limit) - current_count)
     if remaining_budget <= 0:
-        raise RuntimeError("Р”РЅРµРІРЅРѕР№ Р»РёРјРёС‚ РѕС‚РєР»РёРєРѕРІ СѓР¶Рµ РёСЃС‡РµСЂРїР°РЅ.")
+        raise RuntimeError("Дневной лимит откликов уже исчерпан.")
 
     vacancies = {item.vacancy_id: item for item in store.load_vacancies()}
     assessments = [item for item in store.load_assessments() if item.category.value == category_key and item.vacancy_id in vacancies]
@@ -1254,7 +1567,7 @@ def run_apply_batch(
             "attempted": 0,
             "applied": 0,
             "failed": 0,
-            "message": "Р’ РІС‹Р±СЂР°РЅРЅРѕР№ РєРѕР»РѕРЅРєРµ СЃРµР№С‡Р°СЃ РЅРµС‚ РІР°РєР°РЅСЃРёР№ РґР»СЏ РѕС‚РєР»РёРєР°.",
+            "message": "В выбранной колонке сейчас нет вакансий для отклика.",
         }
 
     applied = 0
@@ -1286,7 +1599,7 @@ def run_apply_batch(
     store.touch_dashboard_timestamp("last_apply_submit_at")
     store.record_event(
         "apply-batch",
-        f"РџР°РєРµС‚РЅС‹Р№ РѕС‚РєР»РёРє РїРѕ РєРѕР»РѕРЅРєРµ {category_key}.",
+        f"Пакетный отклик по колонке {category_key}.",
         details={"category": category_key, "attempted": len(queue), "applied": applied, "failed": failed},
     )
     return {
@@ -1296,7 +1609,7 @@ def run_apply_batch(
         "applied": applied,
         "failed": failed,
         "remaining_daily_budget": max(0, daily_limit - _today_apply_counter(store)[1]),
-        "message": f"РџР°РєРµС‚РЅС‹Р№ РѕС‚РєР»РёРє РїРѕ РєРѕР»РѕРЅРєРµ {category_key}: РѕР±СЂР°Р±РѕС‚Р°РЅРѕ {len(queue)}, СѓСЃРїРµС€РЅС‹С… РёР»Рё РґРѕРІРµРґС‘РЅРЅС‹С… РґРѕ С„РёРЅР°Р»СЊРЅРѕРіРѕ С€Р°РіР° {applied}, СЃ РѕС€РёР±РєРѕР№ {failed}.",
+        "message": f"Пакетный отклик по колонке {category_key}: обработано {len(queue)}, успешных или доведённых до финального шага {applied}, с ошибкой {failed}.",
     }
 
 

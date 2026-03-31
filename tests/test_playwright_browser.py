@@ -79,3 +79,21 @@ async def test_launch_chromium_resilient_headed_prefers_system_channels():
         {"headless": False},
         {"channel": "chrome", "headless": False},
     ]
+
+
+@pytest.mark.asyncio
+async def test_launch_chromium_resilient_retries_after_default_permission_error():
+    chromium = _FakeChromium(
+        [
+            PermissionError("WinError 5 access denied"),
+            "chrome-browser",
+        ]
+    )
+
+    browser = await launch_chromium_resilient(_FakePlaywright(chromium), headless=True)
+
+    assert browser == "chrome-browser"
+    assert chromium.calls == [
+        {"headless": True},
+        {"channel": "chrome", "headless": True},
+    ]

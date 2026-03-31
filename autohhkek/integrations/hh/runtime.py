@@ -12,6 +12,7 @@ from autohhkek.services.llm_runtime import LLMRuntime
 from autohhkek.services.openai_runtime import OpenAIAppConfig
 from autohhkek.services.g4f_runtime import G4FAppConfig
 from autohhkek.services.openrouter_runtime import OpenRouterAppConfig
+from autohhkek.services.playwright_browser import get_async_subprocess_probe_error, get_browser_launch_probe_error
 from autohhkek.services.storage import WorkspaceStore
 
 from .forms import build_screening_plan
@@ -49,6 +50,9 @@ class HHAutomationRuntime:
         mcp_ready = self.playwright_mcp.is_available()
         llm_capabilities = self.llm_runtime.capabilities()
         g4f_capabilities = llm_capabilities["backends"]["g4f"]
+        local_playwright_subprocess_error = get_async_subprocess_probe_error()
+        local_playwright_launch_error = get_browser_launch_probe_error()
+        local_playwright_ready = not local_playwright_subprocess_error and not local_playwright_launch_error
         supports = [
             "vacancy-analysis",
             "resume-draft",
@@ -86,6 +90,9 @@ class HHAutomationRuntime:
             "playwright_mcp_command": self.playwright_mcp.config.command,
             "playwright_mcp_source": "auto" if self.playwright_mcp.config.command and not self.store.project_root.joinpath(".env").exists() else "configured",
             "playwright_mcp": self.playwright_mcp.to_stdio_params() if mcp_ready else {},
+            "local_playwright_ready": local_playwright_ready,
+            "local_playwright_subprocess_error": local_playwright_subprocess_error or "",
+            "local_playwright_launch_error": local_playwright_launch_error or "",
         }
 
     def backend_status(self) -> str:

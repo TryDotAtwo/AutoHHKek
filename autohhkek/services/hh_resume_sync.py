@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from autohhkek.domain.models import Anamnesis, UserPreferences, utc_now_iso
+from autohhkek.services.hh_login import run_hh_login
 from autohhkek.services.playwright_browser import launch_chromium_resilient
 
 
@@ -47,6 +48,46 @@ SECTION_STOP_WORDS = (
     "Разрешение на работу",
 )
 
+RESUME_NOISE_PATTERNS = (
+    r"^Мы используем файлы cookie",
+    r"^Правила использования файлов cookie",
+    r"^Понятно$",
+    r"^Чаты\b",
+    r"^Резюме и профиль\b",
+    r"^Отклики\b",
+    r"^Сервисы\b",
+    r"^Карьера\b",
+    r"^Помощь\b",
+    r"^Поиск\b",
+    r"^Создать резюме$",
+    r"^Мои резюме\s*/?$",
+    r"^Редактировать$",
+)
+
+RESUME_END_MARKERS = (
+    "Подобрали для вас",
+    "Скачайте приложение",
+    "HeadHunter",
+    "О компании",
+    "Наши вакансии",
+    "Реклама на сайте",
+    "Соискателям",
+    "Мобильное приложение",
+    "Этика и комплаенс",
+    "Пользовательское соглашение",
+)
+
+LANGUAGE_MARKERS = (
+    "Русский",
+    "Английский",
+    "Немецкий",
+    "Французский",
+    "Испанский",
+    "Китайский",
+    "Russian",
+    "English",
+)
+
 
 def _normalize_space(value: str) -> str:
     return re.sub(r"\s+", " ", str(value or "").replace("\xa0", " ")).strip()
@@ -68,6 +109,27 @@ def _strip_tags(value: str) -> str:
     return _normalize_space(re.sub(r"<[^>]+>", " ", html.unescape(value or "")))
 
 
+def _clean_resume_text(page_text: str, *, title: str = "") -> str:
+    title_normalized = _normalize_space(title)
+    seen_title = not bool(title_normalized)
+    cleaned_lines: list[str] = []
+    for raw_line in str(page_text or "").splitlines():
+        line = _normalize_space(raw_line)
+        if not line:
+            continue
+        if not seen_title:
+            if title_normalized and title_normalized in line:
+                seen_title = True
+            else:
+                continue
+        if any(re.search(pattern, line, flags=re.IGNORECASE) for pattern in RESUME_NOISE_PATTERNS):
+            continue
+        if any(marker.casefold() in line.casefold() for marker in RESUME_END_MARKERS):
+            break
+        cleaned_lines.append(line)
+    return "\n".join(cleaned_lines)
+
+
 def _extract_title(page_text: str, page_html: str) -> str:
     patterns = (
         r'<h1[^>]*data-qa=["\']resume-block-title-position["\'][^>]*>(.*?)</h1>',
@@ -87,29 +149,54 @@ def _extract_title(page_text: str, page_html: str) -> str:
 
 
 def _extract_summary(page_text: str) -> str:
+    stop_pattern = "|".join(map(re.escape, SECTION_STOP_WORDS))
     for marker in ("Обо мне", "О себе", "Summary"):
-        match = re.search(rf"{re.escape(marker)}\s*(.+?)(?:\n\s*\n|{'|'.join(map(re.escape, SECTION_STOP_WORDS))})", page_text, flags=re.DOTALL)
+        match = re.search(rf"{re.escape(marker)}\s*(.+?)(?:\n\s*\n|{stop_pattern})", page_text, flags=re.DOTALL | re.IGNORECASE)
         if match:
             summary = _normalize_space(match.group(1))
             if summary:
                 return summary[:1000]
     paragraphs = [_normalize_space(part) for part in page_text.split("\n\n")]
     for paragraph in paragraphs:
-        if paragraph and len(paragraph) > 80:
-            return paragraph[:1000]
+        if not paragraph or len(paragraph) <= 80:
+            continue
+        if re.search(r"(Контакты|Мобильный телефон|Электронная почта|Опыт работы|Ключевые навыки)", paragraph, flags=re.IGNORECASE):
+            continue
+        return paragraph[:1000]
     return ""
 
 
+def _summary_has_resume_noise(value: str) -> bool:
+    normalized = _normalize_space(value)
+    if not normalized:
+        return False
+    lines = [line for line in normalized.splitlines() if line]
+    for line in lines[:12]:
+        if any(re.search(pattern, line, flags=re.IGNORECASE) for pattern in RESUME_NOISE_PATTERNS):
+            return True
+    lowered = normalized.casefold()
+    noisy_fragments = (
+        "мы используем файлы cookie",
+        "правила использования файлов cookie",
+        "резюме и профиль",
+        "отклики",
+        "создать резюме",
+        "мобильный телефон",
+        "электронная почта",
+        "предпочитаемый способ связи",
+    )
+    return any(fragment in lowered for fragment in noisy_fragments)
+
+
 def _extract_experience_years(page_text: str) -> float | None:
-    match = re.search(r"Опыт работы\s+(\d+)\s*(?:год|года|лет)?(?:\s+(\d+)\s*(?:месяц|месяца|месяцев))?", page_text, flags=re.IGNORECASE)
+    match = re.search(r"Опыт работы[:\s]+(\d+)\s*(?:год|года|лет)?(?:\s+(\d+)\s*(?:месяц|месяца|месяцев))?", page_text, flags=re.IGNORECASE)
     if not match:
         match = re.search(r"(\d+)\s*(?:год|года|лет)(?:\s+(\d+)\s*(?:месяц|месяца|месяцев))?\s+опыта", page_text, flags=re.IGNORECASE)
     if not match:
         return None
     years = int(match.group(1) or 0)
     months = int(match.group(2) or 0)
-    value = years + (months / 12.0)
-    return round(value, 1)
+    return round(years + (months / 12.0), 1)
 
 
 def _extract_links(page_text: str) -> list[str]:
@@ -119,7 +206,7 @@ def _extract_links(page_text: str) -> list[str]:
 
 def _extract_languages(page_text: str) -> list[str]:
     languages: list[str] = []
-    for language in ("Русский", "Английский", "Немецкий", "Французский", "Испанский", "Китайский"):
+    for language in LANGUAGE_MARKERS:
         if re.search(rf"\b{re.escape(language)}\b", page_text, flags=re.IGNORECASE):
             languages.append(language)
     return _unique(languages)
@@ -141,15 +228,17 @@ def _extract_skills(page_text: str, preferences: UserPreferences, anamnesis: Ana
 
 def extract_resume_profile(page_text: str, page_html: str, preferences: UserPreferences, anamnesis: Anamnesis) -> dict[str, Any]:
     title = _extract_title(page_text, page_html)
-    summary = _extract_summary(page_text)
-    experience_years = _extract_experience_years(page_text)
-    skills = _extract_skills(page_text, preferences, anamnesis)
-    languages = _extract_languages(page_text)
-    links = _extract_links(page_text)
+    cleaned_text = _clean_resume_text(page_text, title=title)
+    summary = _extract_summary(cleaned_text)
+    experience_years = _extract_experience_years(cleaned_text)
+    skills = _extract_skills(cleaned_text, preferences, anamnesis)
+    languages = _extract_languages(cleaned_text)
+    links = _extract_links(cleaned_text)
     target_titles = _unique([title, *preferences.target_titles]) if title else list(preferences.target_titles)
     return {
         "headline": title,
         "summary": summary,
+        "cleaned_text": cleaned_text[:20000],
         "experience_years": experience_years,
         "skills": skills,
         "languages": languages,
@@ -178,7 +267,13 @@ def apply_resume_profile_sync(
         updated_anamnesis.headline = headline
 
     summary = str(extracted.get("summary") or "").strip()
-    if summary and summary != updated_anamnesis.summary and (not updated_anamnesis.summary or len(summary) >= len(updated_anamnesis.summary)):
+    current_summary = str(updated_anamnesis.summary or "").strip()
+    should_replace_summary = bool(summary) and summary != current_summary and (
+        not current_summary
+        or len(summary) >= len(current_summary)
+        or _summary_has_resume_noise(current_summary)
+    )
+    if should_replace_summary:
         remember_change("anamnesis", "summary", updated_anamnesis.summary, summary)
         updated_anamnesis.summary = summary
 
@@ -224,19 +319,54 @@ class HHResumeProfileSync:
         preferences = self.store.load_preferences()
         anamnesis = self.store.load_anamnesis()
         selected_resume_id = self.store.load_selected_resume_id()
-        if not preferences or not anamnesis:
-            return {"status": "skipped", "reason": "intake_required", "message": "Intake is required before syncing a resume profile."}
         if not selected_resume_id:
             return {"status": "skipped", "reason": "resume_not_selected", "message": "Select a hh.ru resume before syncing the profile."}
         if not self.state_path.exists():
             return {"status": "skipped", "reason": "login_required", "message": "hh.ru login is required before syncing the selected resume."}
+        bootstrap_profile = False
+        if preferences is None:
+            preferences = UserPreferences()
+            bootstrap_profile = True
+        if anamnesis is None:
+            anamnesis = Anamnesis()
+            bootstrap_profile = True
 
+        payload: dict[str, Any]
+        relogin_attempted = False
         try:
             payload = asyncio.run(self._fetch_selected_resume(selected_resume_id))
+        except RuntimeError as exc:
+            if "login_required" not in str(exc):
+                raise
+            relogin_attempted = True
+            login_result = run_hh_login(self.store.project_root)
+            if login_result.get("status") != "completed":
+                return {
+                    "status": "skipped",
+                    "reason": "login_required",
+                    "message": str(login_result.get("message") or "hh.ru login is required before syncing the selected resume."),
+                    "login_result": login_result,
+                }
+            self.state_path = self.store.hh_state_path
+            try:
+                payload = asyncio.run(self._fetch_selected_resume(selected_resume_id))
+            except Exception as exc:  # noqa: BLE001
+                debug_artifact = self.store.save_debug_artifact(
+                    "hh-resume-sync-error",
+                    {"resume_id": selected_resume_id, "error": str(exc), "relogin_attempted": True},
+                    extension="json",
+                    subdir="hh",
+                )
+                return {
+                    "status": "failed",
+                    "reason": "fetch_error",
+                    "message": f"Failed to refresh the selected hh.ru resume after relogin: {exc}",
+                    "debug_artifact": debug_artifact,
+                }
         except Exception as exc:  # noqa: BLE001
             debug_artifact = self.store.save_debug_artifact(
                 "hh-resume-sync-error",
-                {"resume_id": selected_resume_id, "error": str(exc)},
+                {"resume_id": selected_resume_id, "error": str(exc), "relogin_attempted": relogin_attempted},
                 extension="json",
                 subdir="hh",
             )
@@ -249,7 +379,7 @@ class HHResumeProfileSync:
 
         extracted = extract_resume_profile(str(payload.get("text") or ""), str(payload.get("html") or ""), preferences, anamnesis)
         updated_preferences, updated_anamnesis, changes = apply_resume_profile_sync(preferences, anamnesis, extracted)
-        if changes:
+        if changes or bootstrap_profile:
             self.store.save_preferences(updated_preferences)
             self.store.save_anamnesis(updated_anamnesis)
 
@@ -258,7 +388,13 @@ class HHResumeProfileSync:
             "last_resume_sync_status": "updated" if changes else "no_changes",
             "last_resume_sync_resume_id": selected_resume_id,
             "last_resume_sync_title": str(extracted.get("headline") or ""),
+            "last_resume_sync_extracted": extracted,
+            "last_resume_sync_page_url": str(payload.get("page_url") or ""),
+            "last_resume_sync_page_title": str(payload.get("title") or ""),
+            "last_resume_sync_text_length": int(len(str(payload.get("text") or ""))),
+            "last_resume_sync_html_length": int(len(str(payload.get("html") or ""))),
             "last_resume_sync_change_count": len(changes),
+            "last_resume_sync_bootstrap_profile": bootstrap_profile,
             "last_resume_sync_message": (
                 f"Синхронизация профиля обновила поля: {len(changes)}."
                 if changes
@@ -280,6 +416,8 @@ class HHResumeProfileSync:
             "changes": changes,
             "extracted": extracted,
             "page_url": str(payload.get("page_url") or ""),
+            "relogin_attempted": relogin_attempted,
+            "bootstrap_profile": bootstrap_profile,
         }
 
     async def _fetch_selected_resume(self, resume_id: str) -> dict[str, Any]:
@@ -297,7 +435,10 @@ class HHResumeProfileSync:
             page = await context.new_page()
             await page.goto(resume_url, wait_until="domcontentloaded", timeout=60000)
             await page.wait_for_timeout(2000)
+            if "login" in page.url:
+                raise RuntimeError("login_required")
             await self._expand_resume_sections(page)
+            await page.wait_for_timeout(700)
             payload = {
                 "page_url": page.url,
                 "title": await page.title(),
@@ -314,13 +455,14 @@ class HHResumeProfileSync:
             "button:has-text('Развернуть')",
             "button:has-text('Показать больше')",
             "button:has-text('Подробнее')",
+            "button:has-text('Еще')",
         )
         for selector in selectors:
             try:
                 buttons = await page.query_selector_all(selector)
             except Exception:  # noqa: BLE001
                 continue
-            for button in buttons[:8]:
+            for button in buttons[:10]:
                 try:
                     await button.click(timeout=1500)
                     await page.wait_for_timeout(150)

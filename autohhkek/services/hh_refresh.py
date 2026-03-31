@@ -189,5 +189,6 @@ class HHVacancyRefresher:
             is_remote=str(payload.get("is_remote") or "").strip().lower() == "true",
             url=url,
             summary=str(payload.get("summary") or title).strip(),
+            description=str(payload.get("description") or payload.get("all_text") or payload.get("summary") or title).strip(),
             meta={"source": "hh_live_search", "resume_id": resume_id},
         )

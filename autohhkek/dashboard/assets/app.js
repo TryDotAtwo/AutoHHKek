@@ -1,4 +1,4 @@
-const tabs = [
+﻿const tabs = [
   { id: "agent", label: "Агент" },
   { id: "vacancies", label: "Вакансии" },
   { id: "vacancy", label: "Карточка" },
@@ -31,9 +31,14 @@ const state = {
   openDetails: {},
   isBusy: false,
   pendingActionMessage: "",
+  pendingActionFrames: [],
+  pendingActionStartedAt: 0,
+  pendingTickerId: 0,
   workspaceScrollTopByTab: { agent: 0, vacancies: 0, vacancy: 0, activity: 0 },
   chatScrollTop: 0,
   chatWasNearBottom: true,
+  intakeOverlayScrollTop: 0,
+  intakeOverlayLogScrollTop: 0,
   autoRefreshPauseUntil: 0,
   refreshInFlight: false,
   announcements: new Set(),
@@ -50,6 +55,7 @@ const LAYOUT_STORAGE_KEY = "dashboard.sidebar.width";
 function clampSidebarWidth(width) {
   const safeWidth = Number.isFinite(width) ? width : 384;
   const minWidth = 320;
+  if (window.innerWidth <= 1240) return Math.max(280, Math.min(window.innerWidth - 32, safeWidth));
   const viewportCap = Math.max(minWidth, window.innerWidth - 520);
   return Math.max(minWidth, Math.min(viewportCap, safeWidth));
 }
@@ -78,6 +84,9 @@ function currentWorkspace() {
 function rememberScrollState() {
   const workspace = currentWorkspace();
   const chatLog = document.getElementById("chat-log");
+  const intakeOverlay = document.getElementById("intake-overlay");
+  const intakeOverlayPanel = intakeOverlay?.querySelector(".intake-overlay__panel");
+  const intakeOverlayLog = document.getElementById("intake-overlay-log");
   if (workspace) {
     state.workspaceScrollTopByTab[state.activeTab] = workspace.scrollTop;
   }
@@ -85,11 +94,20 @@ function rememberScrollState() {
     state.chatScrollTop = chatLog.scrollTop;
     state.chatWasNearBottom = chatLog.scrollTop + chatLog.clientHeight >= chatLog.scrollHeight - 24;
   }
+  if (intakeOverlayPanel) {
+    state.intakeOverlayScrollTop = intakeOverlayPanel.scrollTop;
+  }
+  if (intakeOverlayLog) {
+    state.intakeOverlayLogScrollTop = intakeOverlayLog.scrollTop;
+  }
 }
 
 function restoreScrollState() {
   const workspace = currentWorkspace();
   const chatLog = document.getElementById("chat-log");
+  const intakeOverlay = document.getElementById("intake-overlay");
+  const intakeOverlayPanel = intakeOverlay?.querySelector(".intake-overlay__panel");
+  const intakeOverlayLog = document.getElementById("intake-overlay-log");
   if (workspace) {
     const nextTop = state.workspaceScrollTopByTab[state.activeTab] || 0;
     workspace.scrollTop = nextTop;
@@ -102,6 +120,20 @@ function restoreScrollState() {
     chatLog.scrollTop = nextTop;
     window.requestAnimationFrame(() => {
       chatLog.scrollTop = nextTop;
+    });
+  }
+  if (intakeOverlayPanel) {
+    const nextTop = state.intakeOverlayScrollTop || 0;
+    intakeOverlayPanel.scrollTop = nextTop;
+    window.requestAnimationFrame(() => {
+      intakeOverlayPanel.scrollTop = nextTop;
+    });
+  }
+  if (intakeOverlayLog) {
+    const nextTop = state.intakeOverlayLogScrollTop || 0;
+    intakeOverlayLog.scrollTop = nextTop;
+    window.requestAnimationFrame(() => {
+      intakeOverlayLog.scrollTop = nextTop;
     });
   }
 }
@@ -126,7 +158,7 @@ function shouldSkipRefresh() {
 }
 
 function escapeHtml(value) {
-  return String(value ?? "")
+  return repairText(String(value ?? ""))
     .replaceAll("&nbsp;", " ")
     .replace(/\u00a0/g, " ")
     .replaceAll("&", "&amp;")
@@ -134,6 +166,70 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function mojibakeMarkerCount(value) {
+  const text = String(value ?? "");
+  let markers = 0;
+  for (let index = 0; index < text.length - 1; index += 1) {
+    const first = text[index];
+    const second = text[index + 1];
+    if (!second) continue;
+    const secondCode = second.charCodeAt(0);
+    if ((first === "Р" || first === "С") && !/[А-Яа-яЁё\s]/.test(second) && secondCode > 127) markers += 1;
+    if ((first === "Ð" || first === "Ñ") && secondCode > 127) markers += 1;
+  }
+  if (text.includes("�")) markers += 3;
+  if (text.includes("пїЅ")) markers += 3;
+  if (text.includes("\\x")) markers += 2;
+  if (text.includes("07@")) markers += 2;
+  return markers;
+}
+
+function tryDecodeMojibake(value) {
+  if (!value || mojibakeMarkerCount(value) < 2) return value;
+  try {
+    const bytes = Uint8Array.from(Array.from(value, (char) => char.charCodeAt(0) & 0xff));
+    return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  } catch {
+    return value;
+  }
+}
+
+function looksBetter(original, candidate) {
+  if (!candidate || candidate === original) return false;
+  const brokenBefore = mojibakeMarkerCount(original) + (original.match(/\?{3,}/g) || []).length * 4;
+  const brokenAfter = mojibakeMarkerCount(candidate) + (candidate.match(/\?{3,}/g) || []).length * 4;
+  return brokenAfter < brokenBefore;
+}
+
+function repairText(value) {
+  let current = String(value ?? "");
+  for (let step = 0; step < 2; step += 1) {
+    const decoded = tryDecodeMojibake(current);
+    if (!looksBetter(current, decoded)) break;
+    current = decoded;
+  }
+  return current;
+}
+
+function repairRenderedText(root) {
+  if (!root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+  textNodes.forEach((node) => {
+    const repaired = repairText(node.nodeValue || "");
+    if (repaired !== node.nodeValue) node.nodeValue = repaired;
+  });
+  root.querySelectorAll("[placeholder],[title],[aria-label]").forEach((node) => {
+    ["placeholder", "title", "aria-label"].forEach((name) => {
+      const value = node.getAttribute(name);
+      if (!value) return;
+      const repaired = repairText(value);
+      if (repaired !== value) node.setAttribute(name, repaired);
+    });
+  });
 }
 
 function formatDate(value) {
@@ -179,6 +275,10 @@ function isIntakeReady(snapshot) {
   return Boolean(snapshot?.setup_summary?.intake_ready);
 }
 
+function hhLoginReady(snapshot) {
+  return Boolean(snapshot?.hh_login?.state_file_exists);
+}
+
 function isIntakeConfirmed(snapshot) {
   return Boolean(snapshot?.setup_summary?.intake_confirmed);
 }
@@ -194,15 +294,351 @@ function activeIntakeQuestion(snapshot) {
   return questions[stepIndex] || null;
 }
 
+function optimisticIntakeRestartSnapshot(snapshot) {
+  if (!snapshot) return null;
+  const dialog = intakeDialogState(snapshot);
+  const questions = Array.isArray(dialog.questions) ? dialog.questions : [];
+  if (!questions.length) return snapshot;
+  return {
+    ...snapshot,
+    intake_dialog: {
+      ...dialog,
+      active: true,
+      completed: false,
+      step_index: 0,
+      answers: {},
+    },
+    setup_summary: {
+      ...(snapshot.setup_summary || {}),
+      intake_ready: false,
+      intake_dialog_completed: false,
+      intake_confirmed: false,
+      intake_missing: ["dialog"],
+    },
+  };
+}
+
 function intakePriorityLabel(question) {
+  if (!question) return "Сначала подключаем hh.ru и читаем резюме";
   const importance = String(question?.importance || "").toLowerCase();
   if (importance === "critical") return "Сейчас фиксируем обязательные критерии";
   if (importance === "important") return "Теперь уточняем важные предпочтения";
   return "В конце добираем тонкие пожелания";
 }
 
+function intakeResumeFacts(snapshot, context = {}) {
+  const analysis = snapshot.intake?.resume_intake_analysis || {};
+  const profileSync = snapshot.profile_sync || {};
+  const profileSyncReady = ["updated", "no_changes"].includes(profileSync.status || "");
+  const resumeTitle = context.resume_title || (profileSyncReady ? profileSync.resume_title || "" : "");
+  const roles = Array.isArray(context.inferred_roles) && context.inferred_roles.length
+    ? context.inferred_roles
+    : Array.isArray(analysis.inferred_roles) ? analysis.inferred_roles : [];
+  const skills = Array.isArray(context.detected_skills) && context.detected_skills.length
+    ? context.detected_skills
+    : Array.isArray(analysis.core_skills) ? analysis.core_skills : [];
+  const missingTopics = Array.isArray(context.missing_topics) && context.missing_topics.length
+    ? context.missing_topics
+    : Array.isArray(analysis.missing_topics) ? analysis.missing_topics : [];
+  const domains = Array.isArray(context.detected_domains) && context.detected_domains.length
+    ? context.detected_domains
+    : Array.isArray(analysis.domains) ? analysis.domains : [];
+  const experienceYears = Number(context.detected_experience || snapshot.intake?.anamnesis?.experience_years || 0);
+  return { resumeTitle, roles, skills, missingTopics, domains, experienceYears };
+}
+
+function intakeResumeSummary(snapshot, context = {}) {
+  const facts = intakeResumeFacts(snapshot, context);
+  const { resumeTitle, roles, skills, domains, experienceYears } = facts;
+  const hasResumeFacts = Boolean(resumeTitle || roles.length || skills.length);
+  if (hasResumeFacts) {
+    const extraLine = domains.length
+      ? `Домены: ${domains.slice(0, 4).join(", ")}`
+      : experienceYears > 0
+        ? `Опыт: ${experienceYears} лет`
+        : "";
+    return {
+      title: "Что уже понял из резюме",
+      lines: [
+        resumeTitle || "Резюме подключено, но заголовок пока не распознан.",
+        roles.length ? `Роли: ${roles.join(", ")}` : "Роли из резюме пока не выделены.",
+        skills.length ? `Навыки: ${skills.slice(0, 8).join(", ")}` : "Навыки из резюме пока не выделены.",
+        extraLine,
+      ].filter(Boolean),
+    };
+  }
+  if (hhLoginReady(snapshot) && snapshot?.selected_resume_id) {
+    return {
+      title: "Что уже происходит",
+      lines: [
+        "Резюме уже выбрано.",
+        "Агент дочитывает страницу целиком и вытаскивает структуру.",
+        "После этого стартует короткий опросник только по пробелам.",
+      ],
+    };
+  }
+  if (hhLoginReady(snapshot)) {
+    return {
+      title: "Что уже происходит",
+      lines: [
+        "Логин уже есть.",
+        "Осталось выбрать одно резюме для этого аккаунта.",
+        "Дальше разбор и опрос пойдут автоматически.",
+      ],
+    };
+  }
+  return {
+    title: "С чего начинаем",
+    lines: [
+      "1. Войдите в hh.ru под нужным аккаунтом.",
+      "2. Дайте агенту прочитать выбранное резюме и вытащить факты автоматически.",
+      "3. Только потом доберём короткими вопросами то, чего реально не хватает.",
+    ],
+  };
+}
+
+function intakeQuestionFallback(snapshot, context = {}, options = {}) {
+  const short = Boolean(options.short);
+  const facts = intakeResumeFacts(snapshot, context);
+  const hasResumeFacts = Boolean((facts.resumeTitle || "").trim() || facts.roles.length || facts.skills.length);
+  if (!hasResumeFacts) {
+    if (hhLoginReady(snapshot) && snapshot?.selected_resume_id) {
+      return short
+        ? "Резюме уже выбрано. Можно запускать первичное уточнение."
+        : "Резюме уже выбрано. Если фактов ещё мало, агент доберёт недостающее на первом шаге и затем задаст уточняющие вопросы.";
+    }
+    return short
+      ? "Сначала войдите в hh.ru и выберите резюме"
+      : "Сначала войдите в hh.ru и выберите резюме. Агент сам вытащит максимум фактов, а потом задаст только недостающие вопросы.";
+  }
+  return short
+    ? "Резюме уже прочитано. Можно перейти к первому уточняющему вопросу."
+    : "Агент уже прочитал резюме. Дальше пойдут только уточняющие вопросы по реально недостающим пунктам.";
+}
+
+function intakeQuestionHint(snapshot) {
+  if (hhLoginReady(snapshot) && snapshot?.selected_resume_id) {
+    return "Резюме уже выбрано. Агент должен дочитать его, собрать факты и только потом задавать короткие уточняющие вопросы.";
+  }
+  return "Без резюме агент не будет задавать осмысленные вопросы. Сначала нужен вход в hh.ru и выбор резюме, потом он сам соберёт базу и задаст только то, чего не хватает.";
+}
+
+function intakeQuestionExample(snapshot) {
+  if (hhLoginReady(snapshot) && snapshot?.selected_resume_id) {
+    return "Можно запускать первичное доуточнение. Если фактов из резюме ещё мало, агент сначала доберёт их автоматически.";
+  }
+  if (hhLoginReady(snapshot)) {
+    return "Выберите одно резюме. После выбора агент сам дочитает его и соберёт факты.";
+  }
+  return "Сначала подключите hh.ru, потом выберите резюме. Остальное агент сделает сам.";
+}
+
+function intakeWorkflowSummary(snapshot, context = {}) {
+  const facts = intakeResumeFacts(snapshot, context);
+  const profileSyncReady = ["updated", "no_changes"].includes(snapshot?.profile_sync?.status || "");
+  const selectedResume = Boolean(snapshot?.selected_resume_id);
+  const loginReady = hhLoginReady(snapshot);
+  const hasFacts = Boolean((facts.resumeTitle || "").trim() || facts.roles.length || facts.skills.length);
+  const dialog = intakeDialogState(snapshot);
+  if (!loginReady) {
+    return {
+      title: "Что делаем сейчас",
+      lines: [
+        "Подключаем hh.ru под нужным аккаунтом.",
+        "После логина подтягиваем список резюме.",
+        "Потом выбираем одно резюме и разбираем его автоматически.",
+      ],
+    };
+  }
+  if (!selectedResume) {
+    return {
+      title: "Что делаем сейчас",
+      lines: [
+        "Логин уже есть.",
+        "Теперь нужно выбрать одно резюме для этого аккаунта.",
+        "После выбора агент читает полный текст резюме и собирает факты без ручного ввода.",
+      ],
+    };
+  }
+  if (!profileSyncReady && !hasFacts) {
+    return {
+      title: "Что делаем сейчас",
+      lines: [
+        "Резюме уже выбрано.",
+        "Следующий шаг: дочитать полную страницу резюме, вытащить блоки, опыт, навыки, ссылки и ограничения.",
+        "После этого строим примерный опросник и идём по нему короткими уточнениями.",
+      ],
+    };
+  }
+  if (dialog.active) {
+    return {
+      title: "Что делаем сейчас",
+      lines: [
+        "База фактов из резюме уже собрана.",
+        "Сейчас идём по короткому опроснику только по реально недостающим пунктам.",
+        `Шаг ${Number(dialog.step_index || 0) + 1} из ${Number(dialog.total_steps || (dialog.questions || []).length || 1)}.`,
+      ],
+    };
+  }
+  return {
+    title: "Что делаем сейчас",
+    lines: [
+      "Резюме уже разобрано.",
+      "Опросник уже собран на основе фактов из резюме.",
+      "Можно запускать уточнение и двигаться по вопросам.",
+    ],
+  };
+}
+
+function intakePipelineCards(snapshot, context = {}) {
+  const facts = intakeResumeFacts(snapshot, context);
+  const loginReady = hhLoginReady(snapshot);
+  const selectedResume = Boolean(snapshot?.selected_resume_id);
+  const profileSyncReady = ["updated", "no_changes"].includes(snapshot?.profile_sync?.status || "");
+  const hasFacts = Boolean((facts.resumeTitle || "").trim() || facts.roles.length || facts.skills.length);
+  const dialog = intakeDialogState(snapshot);
+  return [
+    {
+      label: "Логин",
+      value: loginReady ? "Ок" : "Нужен",
+      note: loginReady ? "hh.ru уже подключен." : "Подключаем нужный hh-аккаунт.",
+      tone: loginReady ? "good" : "warn",
+    },
+    {
+      label: "Резюме",
+      value: selectedResume ? "Выбрано" : "Не выбрано",
+      note: selectedResume ? (snapshot.selected_resume_title || snapshot.selected_resume_id || "Резюме зафиксировано.") : "Выберите одно резюме для текущего аккаунта.",
+      tone: selectedResume ? "good" : "warn",
+    },
+    {
+      label: "Разбор",
+      value: profileSyncReady || hasFacts ? "Готов" : selectedResume ? "Читаем" : "Ждёт",
+      note: profileSyncReady || hasFacts ? "Факты из резюме уже собраны." : selectedResume ? "Читаем все блоки и извлекаем структуру." : "Сначала нужен выбор резюме.",
+      tone: profileSyncReady || hasFacts ? "good" : selectedResume ? "neutral" : "warn",
+    },
+    {
+      label: "Опросник",
+      value: dialog.active ? `Шаг ${Number(dialog.step_index || 0) + 1}` : profileSyncReady || hasFacts ? "Готов" : "Ждёт",
+      note: dialog.active ? `Из ${(dialog.questions || []).length || 1} вопросов.` : profileSyncReady || hasFacts ? "Идём только по пробелам." : "Сначала нужен полный разбор.",
+      tone: dialog.active || profileSyncReady || hasFacts ? "good" : "warn",
+    },
+  ];
+}
+
+function intakeResumeIntel(snapshot, context = {}) {
+  const facts = intakeResumeFacts(snapshot, context);
+  const analysis = snapshot.intake?.resume_intake_analysis || {};
+  const missing = formatIntakeMissing(snapshot.setup_summary?.intake_missing || []);
+  return [
+    ["Заголовок", facts.resumeTitle || "ещё не извлекли"],
+    ["Сводка", String(analysis.summary || "").trim() || "ещё не собрали"],
+    ["Роли", facts.roles.length ? facts.roles.join(", ") : "ещё не выделили"],
+    ["Навыки", facts.skills.length ? facts.skills.slice(0, 8).join(", ") : "ещё не выделили"],
+    ["Домены", facts.domains.length ? facts.domains.slice(0, 4).join(", ") : "не определены"],
+    ["Сильные стороны", Array.isArray(analysis.strengths) && analysis.strengths.length ? analysis.strengths.slice(0, 4).join(", ") : "ещё не выделили"],
+    ["Ограничения", Array.isArray(analysis.likely_constraints) && analysis.likely_constraints.length ? analysis.likely_constraints.slice(0, 4).join(", ") : "ещё не выделили"],
+    ["Опыт", facts.experienceYears > 0 ? `${facts.experienceYears} лет` : "не определён"],
+    ["Пробелы", missing.length ? missing.slice(0, 4).join(", ") : "критичных пробелов нет"],
+    ["Синк", snapshot?.profile_sync?.updated_at ? `обновлён ${formatDate(snapshot.profile_sync.updated_at)}` : "ещё не запускался"],
+  ];
+}
+
+function intakeNeedsResumeSelection(snapshot) {
+  return hhLoginReady(snapshot) && !snapshot?.selected_resume_id;
+}
+
+function intakeFormMode(snapshot, dialog, context = {}) {
+  const confirmationMode = Boolean(dialog.completed || (snapshot.setup_summary?.intake_dialog_completed && !snapshot.setup_summary?.intake_confirmed));
+  if (confirmationMode) return "confirm";
+  if (!hhLoginReady(snapshot)) return "login";
+  if (intakeNeedsResumeSelection(snapshot)) return "resume";
+  if (dialog.active) return "answer";
+  const facts = intakeResumeFacts(snapshot, context);
+  if (snapshot?.selected_resume_id) return "start";
+  if (activeIntakeQuestion(snapshot) || Boolean((facts.resumeTitle || "").trim() || facts.roles.length || facts.skills.length)) return "start";
+  return "wait";
+}
+
 function categoryLabel(category) {
   return categoryMeta[category]?.label || category || "неизвестно";
+}
+
+function chatLockedReason(snapshot) {
+  if (!snapshot) return "";
+  if (!isIntakeReady(snapshot) && !hhLoginReady(snapshot)) {
+    return "Сначала войдите в hh.ru. Пока логин не завершён, чат в onboarding заблокирован: агенту нужно сначала прочитать резюме.";
+  }
+  return "";
+}
+
+function currentPendingStatus() {
+  if (!state.pendingActionMessage) return "";
+  const frames = Array.isArray(state.pendingActionFrames) ? state.pendingActionFrames.filter(Boolean) : [];
+  if (!frames.length || !state.pendingActionStartedAt) return state.pendingActionMessage;
+  const elapsedMs = Math.max(0, Date.now() - state.pendingActionStartedAt);
+  const frameIndex = Math.floor(elapsedMs / 2200) % frames.length;
+  return frames[frameIndex] || state.pendingActionMessage;
+}
+
+function startPendingTicker() {
+  if (state.pendingTickerId) return;
+  state.pendingTickerId = window.setInterval(() => {
+    if (!state.pendingActionMessage) {
+      stopPendingTicker();
+      return;
+    }
+    renderChatLog();
+  }, 900);
+}
+
+function stopPendingTicker() {
+  if (!state.pendingTickerId) return;
+  window.clearInterval(state.pendingTickerId);
+  state.pendingTickerId = 0;
+}
+
+function setPendingStatus(message, frames = []) {
+  state.pendingActionMessage = String(message || "").trim();
+  state.pendingActionFrames = Array.isArray(frames) ? frames.filter(Boolean) : [];
+  state.pendingActionStartedAt = state.pendingActionMessage ? Date.now() : 0;
+  if (state.pendingActionMessage) startPendingTicker();
+  else stopPendingTicker();
+}
+
+function pendingFramesForAction(kind) {
+  const variants = {
+    chat: [
+      "Получил сообщение. Разбираю, что именно вы хотите.",
+      "Сверяю текущий шаг пайплайна и сохранённое состояние.",
+      "Готовлю ответ и решаю, нужно ли запускать действие.",
+    ],
+    "hh-login": [
+      "Проверяю текущую hh-сессию и готовлю окно входа.",
+      "Поднимаю браузер для авторизации на hh.ru.",
+      "Жду, пока пользователь завершит вход и подтверждение.",
+    ],
+    resume: [
+      "Читаю выбранное резюме и вытаскиваю факты в профиль.",
+      "Сверяю найденные данные с текущими правилами.",
+      "Обновляю сводку профиля и контекст для поиска.",
+    ],
+    analyze: [
+      "Собираю входные данные для анализа вакансий.",
+      "Прогоняю вакансии через оценку и сортировку.",
+      "Готовлю обновлённые карточки и статусы.",
+    ],
+    apply: [
+      "Проверяю карточку и текущий статус отклика.",
+      "Готовлю шаги отклика и сопроводительное письмо.",
+      "Сохраняю результат и обновляю состояние вакансии.",
+    ],
+    generic: [
+      "Принял действие в работу.",
+      "Проверяю текущее состояние и ограничения.",
+      "Готовлю обновление интерфейса.",
+    ],
+  };
+  return variants[kind] || variants.generic;
 }
 
 function findCardById(snapshot, vacancyId) {
@@ -298,61 +734,65 @@ function buildPipeline(snapshot) {
   return [
     {
       id: "login",
-      title: "1. ????? ? hh.ru",
+      title: "1. Вход в hh.ru",
       status: loginRunning ? "active" : hasLogin ? "completed" : "active",
-      summary: loginRunning ? "???????????? ???????? ???? ? ????? ? ????????." : hasLogin ? "?????? hh.ru ??? ?????????." : "????? ??????? hh.ru ? ????????? ??????? ?????.",
-      detail: snapshot.hh_login?.message || "???????????? ??? ?????????? ??????? ? ???????? ?????.",
-      action: hasLogin && !loginRunning ? null : { id: "hh-login", label: "??????? hh.ru" },
+      summary: loginRunning ? "Открыто окно hh.ru для входа и подтверждения сессии." : hasLogin ? "Сессия hh.ru уже активна." : "Нужно открыть hh.ru и пройти вход заново.",
+      detail: snapshot.hh_login?.message || "Используйте этот шаг для проверки входа в hh.ru, прежде чем запускать автоматические действия.",
+      action: hasLogin && !loginRunning ? null : { id: "hh-login", label: "Открыть hh.ru" },
     },
     {
       id: "resume",
-      title: "2. ????? ??????",
+      title: "2. Выбор резюме",
       status: !hasLogin ? "blocked" : selectedResume ? "completed" : "active",
       summary: !hasLogin
-        ? "??? ?????? ?????? ?????? ?? ????????."
+        ? "Пока нет входа в hh.ru, резюме недоступны."
         : selectedResume
-          ? `??? ?????? ??????? ??????: ${snapshot.selected_resume_title || snapshot.selected_resume_id}.`
+          ? `Для поиска выбрано резюме: ${snapshot.selected_resume_title || snapshot.selected_resume_id}.`
           : multipleResumes
-            ? "?? hh.ru ??????? ????????? ??????. ???????????? ?????? ??????? ??????."
+            ? "На hh.ru найдено несколько резюме. Нужно выбрать одно для поиска."
             : hhResumes.length
-              ? "??????? ???? ??????, ????? ??????????."
-              : "????? ????????? ?????? ?????? ?? hh.ru.",
-      detail: snapshot.setup_summary?.live_refresh_message || "?????? ??????????, ?? ???? ????? ???? live search.",
-      action: !hasLogin ? null : selectedResume ? null : { id: "hh-resumes", label: "???????? ?????? ??????" },
+              ? "Резюме найдено, его можно использовать для live search."
+              : "Нужно обновить список резюме с hh.ru.",
+      detail: snapshot.setup_summary?.live_refresh_message || "Этот шаг нужен, чтобы агент опирался на правильное резюме и актуальный профиль кандидата.",
+      action: !hasLogin ? null : selectedResume ? null : { id: "hh-resumes", label: "Обновить список резюме" },
     },
     {
       id: "intake",
-      title: "3. ???????????? intake-??????",
+      title: "3. Обязательный intake-диалог",
       status: !selectedResume && multipleResumes ? "blocked" : intakeReady ? "completed" : "active",
       summary: intakeReady
-        ? "????????? ??????????, ??????????? ? ???????????? ??? ??????? ? ???????."
+        ? "Критичные требования, ограничения и предпочтения уже подтверждены."
         : intakeDialogCompleted && !intakeConfirmed
-          ? "????????? ????????, ??? ?????? ??? ?????????? ??? ?????????????? ??????????????."
-        : intakeDialogCompleted
-          ? "?????? ????????, ?? ??????????? ?????? ??? ???????????? ??? ?????????? ??????."
-          : "??????? ????? ?????? ???????? ?????? ? ???????, ? ??? ????? ????????? ????? ????????.",
+          ? "Диалог завершён, но правила ещё нужно подтвердить перед запуском поиска."
+          : intakeDialogCompleted
+            ? "Основные ответы собраны, но подтверждение ещё не завершено."
+            : "Сначала нужно пройти короткий обязательный диалог о целях поиска и фильтрах.",
       detail: intakeReady
-        ? "?????? ? ?????? ???????????? ??????? ? ???????? ???????????????? ???????."
+        ? "После этого шага можно собирать профиль, фильтры, анализ и переходить к откликам."
         : intakeDialogCompleted && !intakeConfirmed
-          ? "Проверьте итоговую сводку правил кандидата и подтвердите её. До подтверждения поиск вакансий не запускается."
-        : "?????? ???? ??? ???????? ? ????????? ?????????????: ??????? ??????? ????????, ????? ??????????? ??????. ??? ????? ????? ? ?????? ?? ???????????.",
-      action: intakeDialogCompleted && !intakeConfirmed ? { id: "confirm-intake", label: "????????????? ???????" } : { id: "start-intake", label: intakeDialogCompleted ? "?????????? ?????????" : "?????? ?????" },
+          ? "Проверьте итоговые правила поиска и подтвердите их. До подтверждения дальнейшие шаги заблокированы."
+          : "Агент соберёт недостающие ограничения, формат работы, ожидания по роли и ключевые стоп-факторы.",
+      action: !hasLogin || !selectedResume
+        ? null
+        : intakeDialogCompleted && !intakeConfirmed
+          ? { id: "confirm-intake", label: "Подтвердить правила" }
+          : { id: "start-intake", label: intakeDialogCompleted ? "Перезапустить диалог" : "Начать уточнение" },
     },
     {
       id: "profile",
-      title: "4. ????????????? ??????? ? ??????",
+      title: "4. Синхронизация профиля и правил",
       status: !intakeReady ? "blocked" : resumeDraftReady && profileSyncReady && rulesReady ? "completed" : "active",
       summary: resumeDraftReady && profileSyncReady && rulesReady
-        ? "???????, ???????? ?????? ? ??????? ????????????????."
-        : "????? ??????? ????? ??????????? ???????, ??????? ? ???????? ??????.",
+        ? "Профиль, черновик резюме и правила уже синхронизированы."
+        : "Нужно обновить профиль, резюме и производные правила поиска.",
       detail: intakeStructuredReady
-        ? snapshot.profile_sync?.message || "????? ?????????? ??????? ????? ???????? ??????? ? ??????? ?? ?????????? ??????."
-        : "??????????? ?????? ???? ????: ????? ??????? ????????? intake-??????.",
-      action: !intakeReady ? null : { id: "resume-sync", label: "???????? ???????" },
+        ? snapshot.profile_sync?.message || "Этот шаг синхронизирует профиль кандидата, черновик резюме и правила отбора."
+        : "Пока шаг недоступен: сначала завершите обязательный intake-диалог.",
+      action: !intakeReady ? null : { id: "resume-sync", label: "Обновить профиль" },
     },
     {
       id: "filters",
-      title: "5. ??????? ? ??????? ????????",
+      title: "5. Фильтры и источник вакансий",
       status: !intakeReady
         ? "blocked"
         : !selectedResume
@@ -363,46 +803,72 @@ function buildPipeline(snapshot) {
               ? "completed"
               : "active",
       summary: !intakeReady
-        ? "????? ????? ?? ?????????? ????????????? intake."
+        ? "Нельзя идти дальше, пока не завершён обязательный intake."
         : !selectedResume
-          ? "??????? ????? ??????? ?????? ??? live search."
+          ? "Нужно выбрать резюме для live search."
           : filterPlanReady && vacanciesLoaded
             ? hhTotal
-              ? `?? hh.ru ??????? ${hhTotal} ????????, ? ????????? ??????? ${snapshot.counts?.total_vacancies || 0}.`
-              : `???? ???????? ????????, ? ??????? ${snapshot.counts?.total_vacancies || 0} ????????.`
+              ? `На hh.ru найдено ${hhTotal} вакансий, в локальной очереди ${snapshot.counts?.total_vacancies || 0}.`
+              : `Фильтр собран, в локальной очереди ${snapshot.counts?.total_vacancies || 0} вакансий.`
             : filterPlanReady
-              ? "??????? ??????, ???????? ???????? ??????? ????????."
-              : "????? ??????? ??????? ?? ?????? ? ????????.",
+              ? "Фильтры готовы, теперь можно запускать обновление и анализ вакансий."
+              : "Нужно построить фильтры и запрос hh-поиска для резюме.",
       detail: snapshot.filter_plan?.search_text
         ? snapshot.setup_summary?.live_refresh_stats?.search_url
-          ? `????????? ?????: ${snapshot.filter_plan.search_text}. ?????????? ?????? hh-?????? ? ???????? ??? ???????? ?? ?????.`
-          : `????????? ?????: ${snapshot.filter_plan.search_text}.`
-        : "??????? ?????? ????????? ?? ??????? ????, ???? ? ??????????? ?????????.",
+          ? `Поисковый текст: ${snapshot.filter_plan.search_text}. Подготовлен URL hh-поиска и параметры запроса.`
+          : `Поисковый текст: ${snapshot.filter_plan.search_text}.`
+        : "Фильтры ещё не собраны на основе текущего резюме и подтверждённых правил.",
       action: !intakeReady
         ? null
         : !selectedResume
           ? null
           : filterPlanReady
-            ? { id: "analyze", label: "????????? ?????" }
-            : { id: "plan-filters", label: "??????? ???????" },
+            ? { id: "analyze", label: "Запустить анализ" }
+            : { id: "plan-filters", label: "Собрать фильтры" },
     },
     {
       id: "assessment",
-      title: "6. ?????? ?? 3 ????????",
+      title: "6. Оценка по 3 колонкам",
       status: !intakeReady ? "pending" : analyzing ? "active" : assessedCount > 0 ? "completed" : vacanciesLoaded ? "active" : "pending",
       summary: !intakeReady
-        ? "???? ???? ????????? ????? ????????????? intake ? ??????? ??????."
+        ? "Сначала завершите intake и только потом переходите к оценке."
         : analyzing
-          ? snapshot.analysis_job?.message || "???? ???????? ????????."
+          ? snapshot.analysis_job?.message || "Идёт анализ вакансий."
           : assessedCount > 0
-            ? `??????? ${assessedCount} ????????: ${snapshot.counts?.fit || 0} / ${snapshot.counts?.doubt || 0} / ${snapshot.counts?.no_fit || 0}.`
-            : "????? ???????? ???????? ????? ???????? ?? ?? ???? ????????.",
+            ? `Оценено ${assessedCount} вакансий: ${snapshot.counts?.fit || 0} / ${snapshot.counts?.doubt || 0} / ${snapshot.counts?.no_fit || 0}.`
+            : "После анализа вакансии появятся в трёх колонках.",
       detail: assessedCount > 0
-        ? "?????? ???????? ?????? ??????? ???????, ???? ? ?????? ???????? ????? ????????????."
-        : "???????? ??????????: ??????? = ????????, ?????? = ??????????, ??????? = ?? ????????.",
-      action: assessedCount > 0 ? { id: "open-vacancies", label: "??????? ?????" } : vacanciesLoaded ? { id: "analyze", label: "??????? ????????" } : null,
+        ? "Можно перейти к карточкам, ручной корректировке решений и запуску отклика по приоритетным вакансиям."
+        : "Подходит = можно откликаться, Сомневаюсь = нужен ручной разбор, Не подходит = отбрасываем.",
+      action: assessedCount > 0 ? { id: "open-vacancies", label: "Открыть вакансии" } : vacanciesLoaded ? { id: "analyze", label: "Запустить оценку" } : null,
     },
   ];
+}
+
+function localBrowserCapability(snapshot = state.snapshot) {
+  return snapshot?.capability_summary || {};
+}
+
+function localBrowserReady(snapshot = state.snapshot) {
+  return Boolean(localBrowserCapability(snapshot).local_playwright_ready);
+}
+
+function localBrowserErrorMessage(snapshot = state.snapshot) {
+  const capabilities = localBrowserCapability(snapshot);
+  return (
+    capabilities.local_playwright_launch_error ||
+    capabilities.local_playwright_subprocess_error ||
+    "Локальный Playwright-браузер недоступен в текущем окружении."
+  );
+}
+
+function actionAvailability(action, snapshot = state.snapshot) {
+  const actionId = String(action?.id || "");
+  const localBrowserActions = new Set(["hh-resumes", "resume-sync"]);
+  if (localBrowserActions.has(actionId) && !localBrowserReady(snapshot)) {
+    return { disabled: true, reason: localBrowserErrorMessage(snapshot) };
+  }
+  return { disabled: false, reason: "" };
 }
 
 
@@ -430,19 +896,21 @@ function collectQuickActions(snapshot) {
   const currentStep = currentPipelineStep(snapshot);
   if (currentStep?.action) actions.push(currentStep.action);
   if (!isIntakeReady(snapshot)) {
-    actions.push({ id: snapshot.setup_summary?.intake_dialog_completed ? "confirm-intake" : "start-intake", label: snapshot.setup_summary?.intake_dialog_completed ? "Подтвердить правила" : "Начать опрос" });
+    if (!hhLoginReady(snapshot)) actions.push({ id: "hh-login-fresh", label: "Войти в hh.ru" });
+    else if (!snapshot.selected_resume_id) actions.push({ id: "hh-resumes", label: "Обновить список резюме" });
+    else actions.push({ id: snapshot.setup_summary?.intake_dialog_completed ? "confirm-intake" : "start-intake", label: snapshot.setup_summary?.intake_dialog_completed ? "Подтвердить правила" : "Начать уточнение" });
   }
   if (snapshot.hh_accounts?.length) {
-    actions.push({ id: "hh-login", label: "?????? ???????" });
+    actions.push({ id: "hh-login", label: "Открыть hh.ru" });
   }
   if (isIntakeReady(snapshot) && snapshot.selected_resume_id && snapshot.setup_summary?.rules_loaded && !snapshot.filter_plan?.search_text) {
-    actions.push({ id: "plan-filters", label: "??????? ???????" });
+    actions.push({ id: "plan-filters", label: "Собрать фильтры" });
   }
   if (isIntakeReady(snapshot) && snapshot.selected_resume_id && snapshot.filter_plan?.search_text && !snapshot.analysis_job?.running) {
-    actions.push({ id: "analyze", label: "????????? ??????" });
+    actions.push({ id: "analyze", label: "Запустить анализ" });
   }
   if (isIntakeReady(snapshot) && snapshot.counts?.assessed) {
-    actions.push({ id: "open-vacancies", label: "??????? ?????" });
+    actions.push({ id: "open-vacancies", label: "Открыть вакансии" });
   }
   const unique = [];
   const seen = new Set();
@@ -493,14 +961,14 @@ function announceSnapshotChanges(snapshot, previousSnapshot) {
 
 function renderHero(snapshot) {
   const mode = snapshot.runtime_settings?.dashboard_mode || "analyze";
-  const backend = snapshot.runtime_settings?.llm_backend || "openai";
+  const backend = snapshot.runtime_settings?.llm_backend || "openrouter";
   const step = currentPipelineStep(snapshot);
   const selectedResume = snapshot.selected_resume_title || snapshot.selected_resume_id || "не выбрано";
   document.getElementById("hero-summary").textContent =
     step?.summary || snapshot.next_recommended_action?.reason || "Дашборд показывает текущее состояние поиска и очередь вакансий.";
   document.getElementById("hero-next-action").textContent = step?.title || snapshot.next_recommended_action?.label || "Ожидаю действие";
   document.getElementById("hero-next-reason").textContent = `Режим: ${mode}. Модельный backend: ${backend}. Резюме: ${selectedResume}.`;
-  document.getElementById("hero-runtime").textContent = `${backend} · ${mode}`;
+  document.getElementById("hero-runtime").textContent = `${backend} В· ${mode}`;
   document.getElementById("generated-at").textContent = `Обновлено: ${formatDate(snapshot.generated_at)}`;
 }
 
@@ -520,19 +988,36 @@ function renderStatusStrip(snapshot) {
 
 function renderActionButtons(actions, extraClass = "") {
   return actions
-    .map(
-      (action) => `
-        <button
-          class="button ${extraClass} ${escapeHtml(action.className || "")}"
-          type="button"
-          data-dashboard-action="${escapeHtml(action.id || "")}"
-          ${action.chatPrompt ? `data-chat-prompt="${escapeHtml(action.chatPrompt)}"` : ""}
-        >
-          ${escapeHtml(action.label)}
-        </button>
-      `,
-    )
-    .join("");
+    .map((action) => {
+      const availability = actionAvailability(action);
+      return `
+          <button
+            class="button ${extraClass} ${escapeHtml(action.className || "")}"
+            type="button"
+            data-dashboard-action="${escapeHtml(action.id || "")}"
+            ${action.chatPrompt ? `data-chat-prompt="${escapeHtml(action.chatPrompt)}"` : ""}
+            ${availability.reason ? `title="${escapeHtml(availability.reason)}"` : ""}
+            ${availability.disabled ? "disabled" : ""}
+          >
+            ${escapeHtml(action.label)}
+          </button>
+        `;
+    })
+      .join("");
+}
+
+function bindIntakeFormHandlers({ form, input, onSubmit }) {
+  if (!form || typeof onSubmit !== "function") return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await onSubmit();
+  });
+  if (!input) return;
+  input.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    await onSubmit();
+  });
 }
 
 function renderResumeChooser(snapshot) {
@@ -569,23 +1054,29 @@ function renderAccountSwitcher(snapshot) {
   const accounts = snapshot.hh_accounts || [];
   const activeKey = snapshot.active_account?.account_key || snapshot.workspace?.account_key || "";
   return `
-    <div class="stack compact">
-      <div class="note">
+    <div class="account-switcher">
+      <div class="note account-switcher__active">
         <strong>Активный hh-аккаунт</strong>
         <p>${escapeHtml(snapshot.active_account?.display_name || activeKey || "еще не определен")}</p>
       </div>
-      <div class="resume-grid">
+      <div class="inline-actions account-switcher__actions">
+        <button class="button button--ghost" type="button" data-dashboard-action="hh-login-fresh">Войти в другой аккаунт</button>
+      </div>
+      <div class="account-switcher__grid">
         ${renderList(
           accounts,
           (account) => `
-            <article class="resume-card ${activeKey === account.account_key ? "is-active" : ""}">
-              <div>
+            <article class="resume-card account-card ${activeKey === account.account_key ? "is-active" : ""}">
+              <div class="account-card__body">
                 <strong>${escapeHtml(account.display_name || account.account_key)}</strong>
                 <p class="muted">${escapeHtml(account.resume_count ? `${account.resume_count} резюме` : "резюме не определены")}</p>
               </div>
-              <div class="resume-card-actions">
+              <div class="resume-card-actions account-card__actions">
                 <button class="button ${activeKey === account.account_key ? "button--primary" : ""}" type="button" ${activeKey === account.account_key ? "disabled" : `data-account-key="${escapeHtml(account.account_key || "")}"`}>
                   ${activeKey === account.account_key ? "Активен" : "Переключить"}
+                </button>
+                <button class="button button--ghost" type="button" data-delete-account-key="${escapeHtml(account.account_key || "")}" data-delete-account-label="${escapeHtml(account.display_name || account.account_key || "профиль")}">
+                  Удалить
                 </button>
               </div>
             </article>
@@ -665,31 +1156,90 @@ function renderAgentView(snapshot) {
     const currentQuestion = questions[stepIndex] || null;
     const context = dialog.context || {};
     const recentMessages = state.chatHistory.slice(-6);
+    const resumeSummary = intakeResumeSummary(snapshot, context);
+    const workflowSummary = intakeWorkflowSummary(snapshot, context);
+    const pipelineCards = intakePipelineCards(snapshot, context);
+    const resumeIntel = intakeResumeIntel(snapshot, context);
+    const formMode = intakeFormMode(snapshot, dialog, context);
+    const needsResumeSelection = intakeNeedsResumeSelection(snapshot);
     root.innerHTML = `
       <section class="panel intake-stage">
         <div class="intake-stage-head">
           <div>
             <span class="panel-kicker">Обязательный Intake</span>
-            <h2>Сначала разберем ваш профиль, потом перейдем к поиску вакансий</h2>
-            <p class="panel-lead">Это обязательный этап. Агент сначала вытягивает максимум из резюме, потом коротким диалогом собирает ваши жесткие критерии и только после этого запускает поиск и оценку вакансий.</p>
+            <h2>Сначала полный разбор резюме, потом точечный опросник</h2>
+            <p class="panel-lead">Сначала читаем весь hh-профиль по блокам и собираем факты. Потом идём по короткому опроснику только там, где резюме реально молчит.</p>
           </div>
           <div class="inline-actions">
-            ${renderActionButtons([{ id: "start-intake", label: dialog.active ? "Перезапустить опрос" : "Начать опрос" }], "button--compact")}
+            ${renderActionButtons(
+              [{ id: "hh-login-fresh", label: "Войти в другой аккаунт" }],
+              "button--compact",
+            )}
           </div>
         </div>
+        <div class="status-strip intake-status-strip">
+          ${pipelineCards.map((card) => `<article class="status-card status-card--${escapeHtml(card.tone)}"><span class="status-label">${escapeHtml(card.label)}</span><strong>${escapeHtml(card.value)}</strong><p>${escapeHtml(card.note)}</p></article>`).join("")}
+        </div>
+        <section class="panel panel--subtle">
+          <div class="panel-head">
+            <div>
+              <span class="panel-kicker">HH-аккаунты</span>
+              <h2>Аккаунты и сессии</h2>
+            </div>
+          </div>
+          ${renderAccountSwitcher(snapshot)}
+        </section>
         <div class="intake-stage-grid">
           <div class="note">
-            <strong>Что уже взяли из резюме</strong>
-            <p>${escapeHtml(context.resume_title || snapshot.selected_resume_title || "Резюме пока не выбрано.")}</p>
-            <p>${escapeHtml((context.inferred_roles || []).length ? `Роли: ${context.inferred_roles.join(", ")}` : "Роли из резюме еще не уточнены.")}</p>
-            <p>${escapeHtml((context.inferred_skills || []).length ? `Навыки: ${context.inferred_skills.join(", ")}` : "Навыки из резюме еще не уточнены.")}</p>
+            <strong>Что агент уже понял</strong>
+            <div class="detail-block">
+              ${resumeIntel.map(([label, value]) => `<div class="meta-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}
+            </div>
           </div>
           <div class="note">
-            <strong>Что обязательно нужно узнать</strong>
-            <p>${escapeHtml((snapshot.setup_summary?.intake_missing || []).length ? `Пока не закрыты: ${(snapshot.setup_summary.intake_missing || []).join(", ")}.` : "Структурные пробелы закрыты, можно переходить дальше.")}</p>
-            <p>${escapeHtml(currentQuestion ? `Сейчас вопрос ${stepIndex + 1} из ${questions.length}.` : "Диалог еще не начат.")}</p>
+            <strong>${escapeHtml(workflowSummary.title)}</strong>
+            ${workflowSummary.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
           </div>
         </div>
+        <div class="intake-stage-grid intake-stage-grid--compact">
+          <div class="note">
+            <strong>Что ещё нужно уточнить</strong>
+            <p>${escapeHtml((snapshot.setup_summary?.intake_missing || []).length ? `Пока не закрыты: ${formatIntakeMissing(snapshot.setup_summary.intake_missing || []).join(", ")}.` : "Структурные пробелы закрыты, можно переходить дальше.")}</p>
+            <p>${escapeHtml(
+              dialog.active && currentQuestion
+                ? `Сейчас вопрос ${stepIndex + 1} из ${questions.length}.`
+                : needsResumeSelection
+                  ? "Сначала выберите нужное резюме ниже на странице или обновите список."
+                  : intakeQuestionFallback(snapshot, context, { short: true }),
+            )}</p>
+          </div>
+          <div class="note">
+            <strong>Как пойдёт intake</strong>
+            <p>1. Читаем полный текст резюме по блокам.</p>
+            <p>2. Собираем факты и ограничения.</p>
+            <p>3. Строим примерный опросник по пробелам.</p>
+            <p>4. По ходу уточняем детали, если они реально нужны.</p>
+          </div>
+        </div>
+        ${
+          needsResumeSelection
+            ? `
+              <section class="panel panel--subtle">
+                <div class="panel-head">
+                  <div>
+                    <span class="panel-kicker">Выбор резюме</span>
+                    <h2>Найдены несколько резюме</h2>
+                  </div>
+                  <div class="inline-actions">
+                    ${renderActionButtons([{ id: "hh-resumes", label: "Обновить список" }], "button--compact")}
+                  </div>
+                </div>
+                <p class="panel-lead">Выберите одно резюме для поиска, синхронизации профиля и дальнейшего интейка.</p>
+                ${renderResumeChooser(snapshot)}
+              </section>
+            `
+            : ""
+        }
         <div class="intake-dialog-shell">
           <div class="intake-transcript">
             ${renderList(
@@ -699,33 +1249,66 @@ function renderAgentView(snapshot) {
             )}
           </div>
           <div class="intake-question-card">
-            <strong>${escapeHtml(currentQuestion?.title || "Нажмите «Начать опрос», чтобы агент начал диалог.")}</strong>
-            <p>${escapeHtml(currentQuestion?.why || "Сначала фиксируем жесткие критерии, потом доуточняем желательные детали.")}</p>
-            <p class="muted">${escapeHtml(currentQuestion?.example || "Можно отвечать свободным текстом. Если пункт неважен, напишите «пропустить».")}</p>
+            <strong>${escapeHtml(currentQuestion?.title || intakeQuestionFallback(snapshot, context))}</strong>
+            <p>${escapeHtml(currentQuestion?.hint || "Сейчас двигаемся только по недостающим пунктам. Всё, что уже удалось вытащить из резюме, повторно спрашивать не нужно.")}</p>
+            <p class="muted">${escapeHtml(
+              currentQuestion?.example ||
+                (!hhLoginReady(snapshot)
+                  ? "Сначала завершите вход в hh.ru, иначе агенту не с чем работать."
+                  : needsResumeSelection
+                    ? "Выберите одно резюме для текущего аккаунта. Дальше агент сам доберёт факты."
+                    : "Нажмите кнопку ниже. Если разбор резюме ещё неполный, агент сначала дочитает страницу и только потом задаст первый вопрос."),
+            )}</p>
           </div>
           <form id="intake-form" class="intake-form">
-            <textarea id="intake-input" rows="7" placeholder="Ответьте свободным текстом. Например: только remote, не хочу госуху, роли LLM Engineer/NLP Engineer, зарплата от 350k."></textarea>
+            <textarea id="intake-input" rows="7" ${formMode === "answer" ? "" : "disabled"} placeholder="${escapeHtml(
+              formMode === "login"
+                ? "Сначала войдите в hh.ru."
+                : formMode === "resume"
+                  ? "Сначала выберите резюме для поиска."
+                  : formMode === "start"
+                    ? "Нажмите кнопку ниже. Агент сначала дочитает резюме, если разбор ещё не закончен."
+                    : "Ответьте свободным текстом. Например: только remote, не хочу госуху, роли LLM Engineer/NLP Engineer, зарплата от 350k.",
+            )}"></textarea>
             <div class="inline-actions">
-              <button class="button" type="button" data-dashboard-action="start-intake">${escapeHtml(dialog.active ? "Начать заново" : "Начать опрос")}</button>
-              <button class="button button--primary" type="submit">${escapeHtml(dialog.active ? "Отправить ответ" : "Начать и перейти к вопросам")}</button>
+              ${
+                formMode === "answer"
+                  ? `<button class="button" type="button" data-dashboard-action="start-intake" ${state.isBusy ? "disabled" : ""}>Начать заново</button>
+                     <button class="button button--primary" type="submit" ${state.isBusy ? "disabled" : ""}>${escapeHtml(state.isBusy ? "Отправляю..." : "Отправить ответ")}</button>`
+                  : formMode === "start"
+                    ? `<button class="button button--primary" type="button" data-dashboard-action="start-intake" ${state.isBusy ? "disabled" : ""}>Начать уточнение</button>`
+                    : ""
+              }
             </div>
           </form>
         </div>
       </section>
     `;
     wireActionButtons(root);
-    root.querySelector("#intake-form")?.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const input = root.querySelector("#intake-input");
-      const value = (input?.value || "").trim();
-      if (!dialog.active && !value) {
-        await sendChatCommand("начать опрос");
-        return;
-      }
-      if (!value || state.isBusy) return;
-      await sendChatCommand(value);
-      if (input) input.value = "";
+    const intakeForm = root.querySelector("#intake-form");
+    const intakeInput = root.querySelector("#intake-input");
+    bindIntakeFormHandlers({
+      form: intakeForm,
+      input: intakeInput,
+      onSubmit: async () => {
+        const input = intakeInput;
+        const value = (input?.value || "").trim();
+        if (formMode !== "answer") {
+          await runDashboardAction("start-intake");
+          return;
+        }
+        if (!value || state.isBusy) return;
+        await sendChatCommand(value);
+        if (input) input.value = "";
+      },
     });
+    root.querySelectorAll("[data-resume-id]").forEach((node) =>
+      node.addEventListener("click", async () => {
+        const resumeId = node.getAttribute("data-resume-id") || "";
+        if (!resumeId) return;
+        await handleServerAction("/api/actions/select-resume", { resume_id: resumeId });
+      }),
+    );
     return;
   }
   const step = currentPipelineStep(snapshot);
@@ -769,55 +1352,6 @@ function renderAgentView(snapshot) {
         <p class="panel-lead">Пользователь должен явно видеть, по какому резюме идет live search и оценка.</p>
         ${renderResumeChooser(snapshot)}
       </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div>
-            <span class="panel-kicker">Фильтры</span>
-            <h2>Поиск перед парсингом</h2>
-          </div>
-        </div>
-        ${renderFilterPlan(snapshot)}
-      </section>
-
-      <section class="panel panel--wide">
-        <div class="panel-head">
-          <div>
-            <span class="panel-kicker">Фокус</span>
-            <h2>Что пользователь видит сейчас</h2>
-          </div>
-        </div>
-        <div class="focus-grid">
-          <div class="note">
-            <strong>Ожидание ручного действия</strong>
-            <p>${escapeHtml(snapshot.hh_login?.running ? "Браузер открыт. Ждем, пока пользователь завершит логин и капчу." : snapshot.setup_summary?.live_refresh_message || "Контекст hh.ru готовится.")}</p>
-          </div>
-          <div class="note">
-            <strong>Поиск на hh.ru</strong>
-            <p>${escapeHtml(
-              snapshot.setup_summary?.live_refresh_stats?.total_available
-                ? `Найдено ${snapshot.setup_summary.live_refresh_stats.total_available} вакансий, локально собрано ${snapshot.setup_summary.live_refresh_stats.count || snapshot.counts?.total_vacancies || 0}.`
-                : "После запуска анализа здесь появится общее число вакансий с hh.ru и прогресс парсинга.",
-            )}</p>
-          </div>
-          <div class="note">
-            <strong>Текущая рекомендация агента</strong>
-            <p>${escapeHtml(snapshot.next_recommended_action?.reason || step?.summary || "Откройте чат и уточните следующий шаг.")}</p>
-          </div>
-          <div class="note">
-            <strong>Состояние оценки</strong>
-            <p>${escapeHtml(snapshot.analysis_job?.message || snapshot.analysis_state?.stale_reason || "Анализ еще не запускался.")}</p>
-          </div>
-          <div class="note">
-            <strong>Синхронизация резюме</strong>
-            <p>${escapeHtml(snapshot.profile_sync?.message || "Синхронизация еще не запускалась.")}</p>
-          </div>
-          <div class="note">
-            <strong>Текущий кандидат на просмотр</strong>
-            <p>${escapeHtml(selectedCard ? `${selectedCard.title} · ${selectedCard.category_label}` : "Вакансия еще не выбрана.")}</p>
-          </div>
-        </div>
-      </section>
     </div>
   `;
 
@@ -835,6 +1369,15 @@ function renderAgentView(snapshot) {
       await handleServerAction("/api/actions/select-account", { account_key: accountKey });
     }),
   );
+  root.querySelectorAll("[data-delete-account-key]").forEach((node) =>
+    node.addEventListener("click", async () => {
+      const accountKey = node.getAttribute("data-delete-account-key") || "";
+      const label = node.getAttribute("data-delete-account-label") || accountKey || "профиль";
+      if (!accountKey) return;
+      if (!window.confirm(`Удалить профиль hh.ru: ${label}?`)) return;
+      await handleServerAction("/api/actions/delete-account", { account_key: accountKey });
+    }),
+  );
   wireActionButtons(root);
 }
 
@@ -849,6 +1392,7 @@ function renderChatShell() {
           <h2>Чат</h2>
         </div>
       </div>
+      <div id="chat-lock-note"></div>
       <div id="chat-quick-actions" class="chip-row"></div>
       <div id="chat-log" class="chat-log"></div>
       <form id="chat-form" class="chat-form">
@@ -877,15 +1421,35 @@ function renderChatShell() {
 function renderChatLog() {
   const log = document.getElementById("chat-log");
   if (!log) return;
+  const lockedReason = chatLockedReason(state.snapshot);
+  const lockNote = document.getElementById("chat-lock-note");
+  const pendingStatus = currentPendingStatus();
   log.innerHTML = renderList(
-    state.chatHistory,
+    pendingStatus ? [...state.chatHistory, { role: "assistant", text: pendingStatus }] : state.chatHistory,
     (item) => `<article class="chat-message chat-message--${escapeHtml(item.role)}"><span>${escapeHtml(item.role === "assistant" ? "агент" : "вы")}</span><p>${escapeHtml(item.text)}</p></article>`,
     "Чат пуст.",
   );
   if (state.chatWasNearBottom) log.scrollTop = log.scrollHeight;
   else log.scrollTop = state.chatScrollTop;
+  const input = document.getElementById("chat-input");
   const button = document.getElementById("chat-submit");
-  if (button) button.disabled = state.isBusy;
+  if (lockNote) {
+    lockNote.innerHTML = lockedReason
+      ? `<article class="note note--warning"><strong>Чат пока закрыт</strong><p>${escapeHtml(lockedReason)}</p></article>`
+      : "";
+  }
+  if (input) {
+    input.disabled = Boolean(state.isBusy || lockedReason);
+    input.placeholder = lockedReason || "Напиши задачу, правку правил или уточнение по резюме";
+    if (lockedReason) input.title = lockedReason;
+    else input.removeAttribute("title");
+  }
+  if (button) {
+    button.disabled = Boolean(state.isBusy || lockedReason);
+    button.textContent = state.isBusy ? "Готовлю ответ..." : "Отправить";
+    if (lockedReason) button.title = lockedReason;
+    else button.removeAttribute("title");
+  }
 }
 
 function renderChatSidebar(snapshot) {
@@ -908,7 +1472,16 @@ function renderBlockingIntakeOverlay(snapshot) {
   const context = dialog.context || {};
   const transcript = state.chatHistory.slice(-10);
   const contract = snapshot.intake?.user_rules_contract || {};
+  const resumeAnalysis = snapshot.intake?.resume_intake_analysis || {};
   const confirmationMode = Boolean(dialog.completed || (snapshot.setup_summary?.intake_dialog_completed && !snapshot.setup_summary?.intake_confirmed));
+  const resumeFacts = intakeResumeFacts(snapshot, context);
+  const resumeSummary = intakeResumeSummary(snapshot, context);
+  const formMode = intakeFormMode(snapshot, dialog, context);
+  const outstandingTopics = resumeFacts.missingTopics.length
+    ? resumeFacts.missingTopics.slice(0, 4)
+    : (snapshot.setup_summary?.intake_missing || []).length
+      ? formatIntakeMissing(snapshot.setup_summary.intake_missing || [])
+      : [];
   const overlay = document.createElement("section");
   overlay.id = "intake-overlay";
   overlay.className = "intake-overlay";
@@ -918,24 +1491,25 @@ function renderBlockingIntakeOverlay(snapshot) {
       <div class="intake-overlay__head">
         <div>
           <span class="panel-kicker">Обязательный Intake</span>
-          <h2>${escapeHtml(confirmationMode ? "Подтвердите итоговые правила перед запуском поиска" : "Сначала короткий диалог о ваших требованиях, потом поиск вакансий")}</h2>
-          <p class="panel-lead">${escapeHtml(confirmationMode ? "Агент собрал структурные правила кандидата. Проверьте краткую сводку и подтвердите её. До подтверждения поиск и оценка вакансий заблокированы." : "Агент уже вытащил базу из hh-резюме и теперь задает только недостающие вопросы. Пока этот диалог не завершен, поиск и оценка вакансий заблокированы.")}</p>
-        </div>
-        <div class="intake-overlay__progress">
-          <strong>${escapeHtml(confirmationMode ? "Остался шаг подтверждения" : intakePriorityLabel(question))}</strong>
-          <span class="muted">${escapeHtml(confirmationMode ? "После подтверждения откроются поиск и анализ" : question ? `Вопрос ${Number(dialog.step_index || 0) + 1} из ${(dialog.questions || []).length}` : "Нажмите «Начать опрос»")}</span>
+          <h2>${escapeHtml(confirmationMode ? "Подтвердите итоговые правила перед запуском поиска" : "Сначала полный разбор резюме, потом точечный опросник")}</h2>
+          <p class="panel-lead">${escapeHtml(confirmationMode ? "Агент собрал структурные правила кандидата. Проверьте краткую сводку и подтвердите её. До подтверждения поиск и оценка вакансий заблокированы." : "Сначала читаем весь hh-профиль по блокам и собираем факты. Потом идём по короткому опроснику только там, где резюме реально молчит.")}</p>
         </div>
       </div>
       <div class="intake-overlay__meta">
         <article class="note">
-          <strong>Что уже понял из резюме</strong>
-          <p>${escapeHtml(context.resume_title || snapshot.selected_resume_title || "Резюме пока не выбрано.")}</p>
-          <p>${escapeHtml((context.inferred_roles || []).length ? `Роли: ${context.inferred_roles.join(", ")}` : "Роли из резюме пока не выделены.")}</p>
-          <p>${escapeHtml((context.detected_skills || []).length ? `Навыки: ${context.detected_skills.slice(0, 8).join(", ")}` : "Навыки из резюме пока не выделены.")}</p>
+          <strong>HH-аккаунты</strong>
+          <p>Во время intake можно переключаться между сохранёнными hh-аккаунтами. У каждого аккаунта своя сессия и свои резюме.</p>
+          ${renderAccountSwitcher(snapshot)}
+        </article>
+        <article class="note">
+          <strong>Что агент уже понял</strong>
+          <div class="detail-block">
+            ${intakeResumeIntel(snapshot, context).map(([label, value]) => `<div class="meta-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}
+          </div>
         </article>
         <article class="note">
           <strong>Что еще нужно уточнить</strong>
-          <p>${escapeHtml((snapshot.setup_summary?.intake_missing || []).length ? (snapshot.setup_summary.intake_missing || []).join(", ") : "Критичные пробелы закрыты. Осталось добрать уточнения и завершить диалог.")}</p>
+          <p>${escapeHtml(outstandingTopics.length ? outstandingTopics.join(", ") : "Критичные пробелы закрыты. Осталось добрать уточнения и завершить диалог.")}</p>
         </article>
       </div>
       <div class="intake-overlay__body">
@@ -960,19 +1534,50 @@ function renderBlockingIntakeOverlay(snapshot) {
           }
         </div>
         <aside class="intake-overlay__question">
-          <strong>${escapeHtml(confirmationMode ? "Сводка правил собрана" : question?.title || "Нажмите «Начать опрос», чтобы перейти к первому вопросу.")}</strong>
-          <p>${escapeHtml(confirmationMode ? "Если сводка в целом верна, подтвердите правила. Если что-то не так, перезапустите диалог и поправьте ответы." : question?.hint || "Сначала фиксируем обязательные критерии, потом важные предпочтения и в конце необязательные нюансы.")}</p>
-          <p class="muted">${escapeHtml(confirmationMode ? "После подтверждения эти правила станут источником для поиска, оценки вакансий, сопроводительных и анкет." : question?.example || "Можно отвечать свободным текстом. Если текущее понимание подходит, напишите «оставить как есть».")}</p>
+          <strong>${escapeHtml(confirmationMode ? "Сводка правил собрана" : question?.title || intakeQuestionFallback(snapshot, context))}</strong>
+          <p>${escapeHtml(confirmationMode ? "Если сводка в целом верна, подтвердите правила. Если что-то не так, перезапустите диалог и поправьте ответы." : question?.hint || intakeQuestionHint(snapshot))}</p>
+          <p class="muted">${escapeHtml(confirmationMode ? "После подтверждения эти правила станут источником для поиска, оценки вакансий, сопроводительных и анкет." : question?.example || intakeQuestionExample(snapshot))}</p>
         </aside>
       </div>
       <form id="intake-overlay-form" class="intake-overlay__form">
-        ${confirmationMode ? "" : '<textarea id="intake-overlay-input" rows="6" placeholder="Ответьте свободным текстом. Например: только remote, не хочу госуху и университеты, роли LLM Engineer/NLP Engineer, зарплата от 350k."></textarea>'}
+        ${
+          formMode === "resume"
+            ? `
+              <div class="intake-overlay__resume-picker">
+                <div class="panel-head">
+                  <div>
+                    <span class="panel-kicker">Выбор резюме</span>
+                    <h2>Выберите резюме для поиска</h2>
+                  </div>
+                  <div class="inline-actions">
+                    ${renderActionButtons([{ id: "hh-resumes", label: "Обновить список" }], "button--compact")}
+                  </div>
+                </div>
+                <p class="panel-lead">После выбора агент сразу зафиксирует профиль и соберёт базу фактов автоматически.</p>
+                ${renderResumeChooser(snapshot)}
+              </div>
+            `
+            : ""
+        }
+        ${confirmationMode ? "" : `<textarea id="intake-overlay-input" rows="6" ${formMode === "answer" ? "" : "disabled"} placeholder="${escapeHtml(
+          formMode === "login"
+            ? "Сначала войдите в hh.ru."
+            : formMode === "resume"
+              ? "Сначала выберите резюме для поиска."
+              : formMode === "start"
+                ? "Нажмите кнопку ниже. Если разбор резюме ещё не завершён, агент сначала доберёт факты."
+                : "Ответьте свободным текстом. Например: только remote, не хочу госуху и университеты, роли LLM Engineer/NLP Engineer, зарплата от 350k.",
+        )}"></textarea>`}
         <div class="inline-actions">
-          <button class="button" type="button" data-dashboard-action="start-intake">${escapeHtml(dialog.active ? "Начать заново" : "Начать опрос")}</button>
           ${
             confirmationMode
               ? '<button class="button button--primary" type="button" data-dashboard-action="confirm-intake">Подтвердить и открыть поиск</button>'
-              : `<button class="button button--primary" type="submit">${escapeHtml(dialog.active ? "Отправить ответ" : "Начать диалог")}</button>`
+              : formMode === "answer"
+                ? `<button class="button" type="button" data-dashboard-action="start-intake" ${state.isBusy ? "disabled" : ""}>Начать заново</button>
+                   <button class="button button--primary" type="submit" ${state.isBusy ? "disabled" : ""}>${escapeHtml(state.isBusy ? "Отправляю..." : "Отправить ответ")}</button>`
+                : formMode === "start"
+                  ? `<button class="button button--primary" type="button" data-dashboard-action="start-intake" ${state.isBusy ? "disabled" : ""}>Начать уточнение</button>`
+                  : ""
           }
         </div>
       </form>
@@ -980,24 +1585,39 @@ function renderBlockingIntakeOverlay(snapshot) {
   `;
   shell.appendChild(overlay);
   wireActionButtons(overlay);
-  overlay.querySelector("#intake-overlay-form")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (confirmationMode) return;
-    const input = overlay.querySelector("#intake-overlay-input");
-    const value = (input?.value || "").trim();
-    if (!dialog.active && !value) {
-      await sendChatCommand("начать опрос");
-      return;
-    }
-    if (!value || state.isBusy) return;
-    await sendChatCommand(value);
-    if (input) input.value = "";
+  overlay.querySelectorAll("[data-resume-id]").forEach((node) =>
+    node.addEventListener("click", async () => {
+      const resumeId = node.getAttribute("data-resume-id") || "";
+      if (!resumeId) return;
+      await handleServerAction("/api/actions/select-resume", { resume_id: resumeId });
+    }),
+  );
+  const intakeOverlayForm = overlay.querySelector("#intake-overlay-form");
+  const intakeOverlayInput = overlay.querySelector("#intake-overlay-input");
+  bindIntakeFormHandlers({
+    form: intakeOverlayForm,
+    input: intakeOverlayInput,
+    onSubmit: async () => {
+      if (confirmationMode) return;
+      const input = intakeOverlayInput;
+      const value = (input?.value || "").trim();
+      if (formMode !== "answer") {
+        await runDashboardAction("start-intake");
+        return;
+      }
+      if (!value || state.isBusy) return;
+      await sendChatCommand(value);
+      if (input) input.value = "";
+    },
   });
 }
 
 function renderLlmGateOverlay(snapshot) {
   document.getElementById("llm-gate-overlay")?.remove();
   const gate = snapshot?.llm_gate || {};
+  const stage = String(gate.stage || "");
+  if (stage === "resume_intake" && snapshot?.setup_summary?.intake_ready) return;
+  if (stage === "filter_plan" && snapshot?.setup_summary?.filter_plan_ready) return;
   if (!gate.active) return;
   const shell = document.querySelector(".app-shell");
   if (!shell) return;
@@ -1034,11 +1654,17 @@ function focusChatInput(promptText = "") {
 
 async function sendChatCommand(message) {
   if (!message || state.isBusy) return;
+  const lockedReason = chatLockedReason(state.snapshot);
+  if (lockedReason) {
+    appendAssistantMessage(lockedReason, `chat-locked:${lockedReason}`);
+    renderChatLog();
+    return;
+  }
   const input = document.getElementById("chat-input");
   pauseAutoRefresh(12000);
   state.chatHistory.push({ role: "user", text: message });
   state.isBusy = true;
-  state.pendingActionMessage = "Отправляю сообщение агенту.";
+  setPendingStatus("Отправляю сообщение агенту.", pendingFramesForAction("chat"));
   renderChatLog();
   if (state.snapshot) renderAgentView(state.snapshot);
   try {
@@ -1050,16 +1676,20 @@ async function sendChatCommand(message) {
     state.chatHistory.push({ role: "assistant", text: `Ошибка: ${error.message}` });
   } finally {
     state.isBusy = false;
-    state.pendingActionMessage = "";
+    setPendingStatus("");
     renderChatLog();
     if (state.snapshot) renderAgentView(state.snapshot);
   }
 }
 
 function pickResultMessage(result) {
+  const payload = result?.result?.payload || {};
+  if (result?.result?.action === "plan_apply" && payload?.vacancy?.title) {
+    return `План отклика собран для вакансии «${payload.vacancy.title}». Проверьте письмо и шаги отклика в карточке.`;
+  }
   return (
-    result?.result?.payload?.result?.message ||
-    result?.result?.payload?.message ||
+    payload?.result?.message ||
+    payload?.message ||
     result?.result?.message ||
     result?.message ||
     ""
@@ -1067,15 +1697,29 @@ function pickResultMessage(result) {
 }
 
 async function handleServerAction(url, payload = {}, onSuccess) {
-  state.pendingActionMessage = payload?.vacancy_id
+  const pendingMessage = payload?.vacancy_id
     ? "Обновляю действия по вакансии."
+    : (url.includes("/hh-login")
+      ? "Открываю hh.ru для входа."
+      : (url.includes("/resume")
+        ? "Обновляю профиль и черновик резюме."
+        : (url.includes("/analyze")
+          ? "Запускаю анализ и разбор вакансий."
+          : (url.includes("/apply")
+            ? "Готовлю действие по отклику."
+            : (url.includes("/apply-batch")
+              ? `Запускаю пакетную отправку откликов по колонке ${categoryLabel(payload?.category || "")}.`
+              : "Выполняю действие.")))));
+  const pendingKind = url.includes("/hh-login")
+    ? "hh-login"
     : (url.includes("/resume")
-      ? "Обновляю профиль и черновик резюме."
+      ? "resume"
       : (url.includes("/analyze")
-        ? "Запускаю анализ и разбор вакансий."
-        : (url.includes("/apply-batch")
-          ? `Запускаю пакетную отправку откликов по колонке ${categoryLabel(payload?.category || "")}.`
-          : "Выполняю действие.")));
+        ? "analyze"
+        : (url.includes("/apply") ? "apply" : "generic")));
+  state.isBusy = true;
+  setPendingStatus(pendingMessage, pendingFramesForAction(pendingKind));
+  renderChatLog();
   if (state.snapshot) renderAgentView(state.snapshot);
   try {
     const result = await postJson(url, payload);
@@ -1087,18 +1731,39 @@ async function handleServerAction(url, payload = {}, onSuccess) {
   } catch (error) {
     state.chatHistory.push({ role: "assistant", text: `Ошибка: ${error.message}` });
     renderChatLog();
+  } finally {
+    state.isBusy = false;
+    setPendingStatus("");
+    renderChatLog();
+    if (state.snapshot) renderAgentView(state.snapshot);
   }
 }
 
 async function runDashboardAction(actionId, chatPrompt = "") {
   if (!actionId) return;
   const intakeBlockedActions = new Set(["resume-sync", "build-rules", "plan-filters", "analyze", "apply-plan", "open-vacancies", "open-vacancy"]);
+  const availability = actionAvailability({ id: actionId });
   if (actionId === "focus-chat") {
     focusChatInput(chatPrompt);
     return;
   }
+  if (availability.disabled) {
+    appendAssistantMessage(availability.reason, `action-disabled:${actionId}:${availability.reason}`);
+    renderChatLog();
+    return;
+  }
   if (actionId === "start-intake") {
-    await sendChatCommand("?????? ?????");
+    const context = intakeDialogState(state.snapshot).context || {};
+    const facts = intakeResumeFacts(state.snapshot, context);
+    const hasFacts = Boolean((facts.resumeTitle || "").trim() || facts.roles.length || facts.skills.length);
+    if (state.snapshot?.selected_resume_id && !hasFacts) {
+      await handleServerAction("/api/actions/resume", {});
+    }
+    const optimisticSnapshot = optimisticIntakeRestartSnapshot(state.snapshot);
+    if (optimisticSnapshot) renderSnapshot(optimisticSnapshot);
+    await handleServerAction("/api/actions/start-intake", {
+      restart: Boolean(state.snapshot?.setup_summary?.intake_dialog_completed || intakeDialogState(state.snapshot).active),
+    });
     return;
   }
   if (actionId === "open-vacancies") {
@@ -1121,6 +1786,7 @@ async function runDashboardAction(actionId, chatPrompt = "") {
 
   const routes = {
     "hh-login": ["/api/actions/hh-login", {}],
+    "hh-login-fresh": ["/api/actions/hh-login", { fresh_start: true }],
     "hh-resumes": ["/api/actions/hh-resumes", {}],
     "confirm-intake": ["/api/actions/confirm-intake", {}],
     "llm-fallback-heuristics": ["/api/actions/llm-fallback-heuristics", { stage: state.snapshot?.llm_gate?.stage || "resume_intake" }],
@@ -1152,25 +1818,25 @@ function renderVacancies(snapshot) {
   const applyLimits = snapshot.apply_limits || { daily_limit: 200, used_today: 0, remaining_today: 200 };
   const applyBatchJob = snapshot.apply_batch_job || {};
   if (!isIntakeReady(snapshot)) {
-    root.innerHTML = `<section class="panel"><div class="note"><strong>??????? ???????????? intake</strong><p>${escapeHtml("????? ????????, ????? ? ???????? ??????? ??????????? ?????? ????? ?????????? ??????? ? ???????. ??????? ????????? ???????????? intake ? ?????? ??????.")}</p></div></section>`;
+    root.innerHTML = `<section class="panel"><div class="note"><strong>Сначала завершите intake</strong><p>${escapeHtml("Пока intake не подтверждён, поиск и оценка вакансий заблокированы. Сначала завершите и подтвердите onboarding в правой панели.")}</p></div></section>`;
     return;
   }
   if ((snapshot.counts?.assessed || 0) <= 0) {
-    root.innerHTML = `<section class="panel"><div class="note"><strong>?????? ??? ?? ?????????</strong><p>${escapeHtml(snapshot.analysis_job?.message || "??????? ???????? ????? ????????? ? ????????? ??????.")}</p></div><div class="note"><strong>???????? ????????</strong><p>${escapeHtml(snapshot.setup_summary?.live_refresh_message || "???????? hh.ru ??? ?? ?????.")}</p></div></section>`;
+    root.innerHTML = `<section class="panel"><div class="note"><strong>Оценённых вакансий пока нет</strong><p>${escapeHtml(snapshot.analysis_job?.message || "Сначала запустите анализ, чтобы заполнить и отсортировать очередь.")}</p></div><div class="note"><strong>Источник вакансий</strong><p>${escapeHtml(snapshot.setup_summary?.live_refresh_message || "Поиск hh.ru ещё не запускался.")}</p></div></section>`;
     return;
   }
   root.innerHTML = `
     <div class="panel">
       <div class="panel-head">
         <div>
-          <span class="panel-kicker">????? ????????????</span>
-          <h2>?????? ???????? ?? ???? ????????</h2>
+          <span class="panel-kicker">Очередь откликов</span>
+          <h2>Вакансии, разбитые по трём колонкам</h2>
         </div>
       </div>
       <div class="stack compact board-summary">
-        <div class="note"><strong>?????? ???????</strong><p>${escapeHtml(snapshot.analysis_job?.message || "?????????? ?????? ? ?????????.")}</p></div>
-        <div class="note"><strong>????????</strong><p>${escapeHtml(snapshot.setup_summary?.live_refresh_message || "???????? ?? ?????????.")}</p></div>
-        <div class="note"><strong>????? ????????</strong><p>${escapeHtml(`??????? ???????????? ${applyLimits.used_today || 0} ?? ${applyLimits.daily_limit || 200}, ???????? ${applyLimits.remaining_today || 0}.`)}</p></div>
+        <div class="note"><strong>Статус анализа</strong><p>${escapeHtml(snapshot.analysis_job?.message || "Оценка очереди не запускалась.")}</p></div>
+        <div class="note"><strong>Источник</strong><p>${escapeHtml(snapshot.setup_summary?.live_refresh_message || "Источник вакансий ещё не обновлялся.")}</p></div>
+        <div class="note"><strong>Лимит откликов</strong><p>${escapeHtml(`Сегодня использовано ${applyLimits.used_today || 0} из ${applyLimits.daily_limit || 200}, осталось ${applyLimits.remaining_today || 0}.`)}</p></div>
       </div>
       <div class="board">
         ${Object.entries(categoryMeta)
@@ -1187,7 +1853,7 @@ function renderVacancies(snapshot) {
                     <button class="button button--ghost button--compact" type="button" ${
                       applyBatchJob.running ? "disabled" : `data-apply-batch="${escapeHtml(key)}"`
                     }>${
-                      applyBatchJob.running && applyBatchJob.category === key ? "???? ????????" : "???????????? ?? ????"
+                      applyBatchJob.running && applyBatchJob.category === key ? "Идёт отклик" : "Откликнуться по всем"
                     }</button>
                   </div>
                 </div>
@@ -1199,14 +1865,14 @@ function renderVacancies(snapshot) {
                         <div class="vacancy-card-top">
                           <div>
                             <strong>${escapeHtml(card.title)}</strong>
-                            <div class="vacancy-meta">${escapeHtml(card.company || "???????? ?? ???????")} ? ${escapeHtml(card.location || "??????? ?? ???????")}</div>
+                            <div class="vacancy-meta">${escapeHtml(card.company || "компания не указана")} • ${escapeHtml(card.location || "локация не указана")}</div>
                           </div>
                           <span class="score">${escapeHtml(card.score)}</span>
                         </div>
-                        <p>${escapeHtml(card.reason_summary || "??????? ?????? ?? ?????????.")}</p>
+                        <p>${escapeHtml(card.reason_summary || "Краткое пояснение по вакансии ещё не сохранено.")}</p>
                       </article>
                     `,
-                    "???? ??? ????????.",
+                    "Пока нет карточек в этой колонке.",
                   )}
                 </div>
               </section>
@@ -1310,6 +1976,14 @@ function renderVacancyDetail(snapshot) {
   const currentIndex = Math.max(0, allIds.indexOf(card.id));
   const prevId = currentIndex > 0 ? allIds[currentIndex - 1] : "";
   const nextId = nextVacancyId(snapshot, card.id);
+  const applyRuntimeMessage = String(feedback.last_apply_message || "");
+  const applyUnavailable =
+    !localBrowserReady(snapshot) || applyRuntimeMessage.includes("Failed to start Playwright browser for hh.ru apply flow");
+  const applyUnavailableReason = applyUnavailable
+    ? (applyRuntimeMessage.includes("Failed to start Playwright browser for hh.ru apply flow")
+      ? applyRuntimeMessage
+      : localBrowserErrorMessage(snapshot))
+    : "";
   root.innerHTML = `
     <div class="vacancy-detail-grid">
       <section class="panel panel--detail-main">
@@ -1364,8 +2038,9 @@ function renderVacancyDetail(snapshot) {
         <div class="cta-stack">
           <button class="button button--ghost" id="save-cover-letter">Сохранить письмо</button>
           <button class="button button--ghost" id="build-apply-plan">Собрать план отклика</button>
-          <button class="button button--primary" id="apply-submit">Откликнуться</button>
+          <button class="button button--primary" id="apply-submit" ${applyUnavailable ? `disabled title="${escapeHtml(applyUnavailableReason)}"` : ""}>Откликнуться</button>
         </div>
+        ${applyUnavailable ? `<div class="note note--pending"><strong>Локальный браузер недоступен</strong><p>${escapeHtml(applyUnavailableReason)}</p></div>` : ""}
         <div class="note"><strong>Статус отклика</strong><p>${escapeHtml(feedback.last_apply_message || "Отклик еще не запускался.")}</p><p class="muted">${escapeHtml(feedback.last_apply_at ? formatDate(feedback.last_apply_at) : "нет запуска")}</p></div>
         <button class="button button--ghost" type="button" id="open-next-vacancy">${escapeHtml(nextId && nextId !== card.id ? "Следующая карточка" : "Остаться на этой карточке")}</button>
       </aside>
@@ -1395,6 +2070,11 @@ function renderVacancyDetail(snapshot) {
     await handleServerAction("/api/actions/apply-plan", { vacancy_id: card.id });
   });
   document.getElementById("apply-submit")?.addEventListener("click", async () => {
+    if (applyUnavailable) {
+      appendAssistantMessage(applyUnavailableReason, `apply-disabled:${card.id}:${applyUnavailableReason}`);
+      renderChatLog();
+      return;
+    }
     pauseAutoRefresh(15000);
     const text = document.getElementById("cover-letter-input")?.value || "";
     await handleServerAction("/api/actions/apply-submit", { vacancy_id: card.id, cover_letter: text });
@@ -1453,7 +2133,7 @@ function renderActivity(snapshot) {
       <section class="panel panel--wide">
         <div class="panel-head"><div><span class="panel-kicker">Запуски</span><h2>История прогонов</h2></div></div>
         <div class="stack">
-          ${renderList(snapshot.recent_runs || [], (run) => `<article class="history-card"><strong>${escapeHtml(run.run_id || "run")}</strong><p>${escapeHtml(run.mode || "")} · ${escapeHtml(run.status || "")}</p><p class="muted">${escapeHtml(formatDate(run.started_at))}</p></article>`, "Запусков пока нет.")}
+          ${renderList(snapshot.recent_runs || [], (run) => `<article class="history-card"><strong>${escapeHtml(run.run_id || "run")}</strong><p>${escapeHtml(run.mode || "")} В· ${escapeHtml(run.status || "")}</p><p class="muted">${escapeHtml(formatDate(run.started_at))}</p></article>`, "Запусков пока нет.")}
         </div>
       </section>
     </div>
@@ -1483,6 +2163,7 @@ function renderSnapshot(snapshot) {
   renderActivity(snapshot);
   renderBlockingIntakeOverlay(snapshot);
   renderLlmGateOverlay(snapshot);
+  repairRenderedText(document.body);
   updateVisibleTab();
   restoreScrollState();
 }
@@ -1521,7 +2202,8 @@ function initLayoutResizer() {
   if (!shell || !resizer) return;
 
   const storedWidth = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
-  if (storedWidth) applySidebarWidth(shell, storedWidth);
+  if (storedWidth && window.innerWidth > 1240) applySidebarWidth(shell, storedWidth);
+  if (window.innerWidth <= 1240) shell.style.removeProperty("--sidebar-width");
 
   let startX = 0;
   let startWidth = 0;
@@ -1548,9 +2230,30 @@ function initLayoutResizer() {
   });
 
   window.addEventListener("resize", () => {
+    if (window.innerWidth <= 1240) {
+      shell.style.removeProperty("--sidebar-width");
+      return;
+    }
     const currentWidth = document.getElementById("chat-sidebar")?.getBoundingClientRect().width || storedWidth || 384;
     applySidebarWidth(shell, currentWidth);
   });
+}
+
+function formatIntakeMissing(items) {
+  const snapshot = state.snapshot;
+  const profileMessage = !hhLoginReady(snapshot)
+    ? "нужно войти в hh.ru"
+    : !snapshot?.selected_resume_id
+      ? "нужно выбрать резюме для поиска"
+      : "нужно дочитать и структурировать выбранное резюме";
+  const mapping = {
+    profile: profileMessage,
+    dialog: "обязательный диалог не завершен",
+    confirmation: "правила ещё не подтверждены",
+    structured_profile: "структурный профиль ещё не собран",
+    exclusions: "не заданы исключения и стоп-слова",
+  };
+  return (Array.isArray(items) ? items : []).map((item) => mapping[item] || item);
 }
 
 function initInteractionGuards() {
@@ -1612,3 +2315,4 @@ void refresh();
 setInterval(() => {
   void refresh();
 }, 5000);
+

@@ -7,7 +7,7 @@ from autohhkek.services.openrouter_runtime import normalize_openrouter_model
 
 
 DEFAULT_RUNTIME_SETTINGS: dict[str, Any] = {
-    "llm_backend": "openai",
+    "llm_backend": "openrouter",
     "dashboard_mode": "analyze",
     "mode_selected": False,
     "auto_run_repair_worker": False,

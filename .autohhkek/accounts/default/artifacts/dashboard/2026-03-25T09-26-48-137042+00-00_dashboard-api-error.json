@@ -1,8 +1,0 @@
-{
-  "path": "/api/actions/apply-submit",
-  "error": "BrowserType.launch: Executable doesn't exist at C:\\Users\\���� ��⢠�\\AppData\\Local\\ms-playwright\\chromium-1208\\chrome-win64\\chrome.exe\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     playwright install                                     ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝",
-  "body": {
-    "vacancy_id": "9852d9ee3678dfe7",
-    "cover_letter": "????????????! ???? ?? ????????. ??? ???? ?????????? ???? ? ?????. ????? ???????? ??????."
-  }
-}

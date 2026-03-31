@@ -1,13 +1,24 @@
 [
   {
-    "account_key": "hh-2512a1360b39",
-    "display_name": "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs Обновлено сегодня в 16:39 , Подключено автоподнятие",
+    "account_key": "hh-9711b08f5335",
+    "display_name": "Постоянная работа, подработка Начинающий специалист 40 000 ₽ · Удалённо +1",
+    "resume_ids": [
+      "6333328fff1037a7340039ed1f6a5257796338",
+      "c363843cff0ca267460039ed1f4c344c716b76"
+    ],
+    "resume_count": 2,
+    "updated_at": "2026-03-28T23:57:09.364961+00:00",
+    "last_login_at": "2026-03-28T17:11:27.789859+00:00",
+    "selected_resume_id": "6333328fff1037a7340039ed1f6a5257796338"
+  },
+  {
+    "account_key": "default",
+    "display_name": "Theoretical physicist/LLM Engineer/Research Scientist in NLP / LLMs Обновлено сегодня в 14:42 , Подключено автоподнятие",
     "resume_ids": [
       "07687234ff0dd3ea5f0039ed1f47594655564f"
     ],
     "resume_count": 1,
-    "updated_at": "2026-03-25T16:36:05.339975+00:00",
-    "last_login_at": "2026-03-25T12:18:50.541561+00:00",
+    "updated_at": "2026-03-28T13:28:52.391592+00:00",
     "selected_resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f"
   }
 ]

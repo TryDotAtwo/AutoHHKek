@@ -1,7 +1,0 @@
-{
-  "path": "/api/actions/select-account",
-  "error": "account_key was not found in saved hh accounts.",
-  "body": {
-    "account_key": "default"
-  }
-}

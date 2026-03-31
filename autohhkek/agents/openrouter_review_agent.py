@@ -111,6 +111,7 @@ class OpenRouterVacancyReviewer:
     ) -> str:
         payload = {
             "vacancy": vacancy.to_dict(),
+            "vacancy_searchable_text": vacancy.searchable_text(),
             "preferences": preferences.to_dict(),
             "anamnesis": anamnesis.to_dict(),
         }

@@ -30,7 +30,7 @@ def test_dashboard_snapshot_groups_vacancies_and_builds_session_summary(tmp_path
     monkeypatch.setattr(snapshot_module, "HHAutomationRuntime", _ReadyRuntime)
     store = WorkspaceStore(tmp_path)
     store.save_runtime_settings({"dashboard_mode": "analyze", "mode_selected": True})
-    prefs = UserPreferences(full_name="Ivan", target_titles=["ML Engineer"])
+    prefs = UserPreferences(full_name="Ivan", target_titles=["ML Engineer"], preferred_locations=["Remote"])
     anamnesis = Anamnesis(headline="ML Engineer", primary_skills=["Python"])
     vacancy = Vacancy(vacancy_id="vac-1", title="ML Engineer", company="Demo")
     assessment = VacancyAssessment(
@@ -45,6 +45,7 @@ def test_dashboard_snapshot_groups_vacancies_and_builds_session_summary(tmp_path
     store.save_selection_rules(build_selection_rules_markdown(prefs, anamnesis))
     store.save_vacancies([vacancy])
     store.save_assessments([assessment])
+    store.update_dashboard_state({"intake_dialog_completed": True, "intake_confirmed": True})
     store.save_run(
         RunSummary(
             run_id="analyze-1",
@@ -96,10 +97,11 @@ def test_dashboard_snapshot_reports_missing_rules_after_intake(tmp_path, monkeyp
     monkeypatch.setattr(snapshot_module, "HHAutomationRuntime", _ReadyRuntime)
     store = WorkspaceStore(tmp_path)
     store.save_runtime_settings({"dashboard_mode": "analyze", "mode_selected": True})
-    prefs = UserPreferences(full_name="Ivan", target_titles=["ML Engineer"])
+    prefs = UserPreferences(full_name="Ivan", target_titles=["ML Engineer"], preferred_locations=["Remote"])
     anamnesis = Anamnesis(headline="ML Engineer", primary_skills=["Python"])
     store.save_preferences(prefs)
     store.save_anamnesis(anamnesis)
+    store.update_dashboard_state({"intake_dialog_completed": True, "intake_confirmed": True})
 
     snapshot = build_dashboard_snapshot(tmp_path)
 
@@ -112,7 +114,7 @@ def test_dashboard_snapshot_counts_full_assessment_pool_even_when_display_is_lim
     monkeypatch.setattr(snapshot_module, "HHAutomationRuntime", _ReadyRuntime)
     store = WorkspaceStore(tmp_path)
     store.save_runtime_settings({"dashboard_mode": "analyze", "mode_selected": True})
-    prefs = UserPreferences(full_name="Ivan", target_titles=["ML Engineer"])
+    prefs = UserPreferences(full_name="Ivan", target_titles=["ML Engineer"], preferred_locations=["Remote"])
     anamnesis = Anamnesis(headline="ML Engineer", primary_skills=["Python"])
     store.save_preferences(prefs)
     store.save_anamnesis(anamnesis)

@@ -1,0 +1,412 @@
+[
+  {
+    "vacancy_id": "131475583",
+    "category": "doubt",
+    "subcategory": "IT/Образование",
+    "score": 60.0,
+    "explanation": "Несмотря на наличие опыта в IT и интереса к образованию, вакансия не требует навыков, а также не указана заработная плата, что вызывает сомнения.",
+    "reasons": [
+      {
+        "code": "LACK_OF_DETAILS",
+        "label": "Недостаток информации о зарплате",
+        "group": "negative",
+        "detail": "Нет указаний на уровень зарплаты.",
+        "weight": 75.0,
+        "subcategory": "Финансовые условия"
+      },
+      {
+        "code": "RELEVANT_SKILLS",
+        "label": "Наличие навыков Python",
+        "group": "positive",
+        "detail": "Кандидат имеет знания Python, что соответствует требованиям.",
+        "weight": 50.0,
+        "subcategory": "Навыки IT"
+      }
+    ],
+    "recommended_action": "Уточнить детали вакансии и возможные условия.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Подходит для начала в качестве наставника, но нужно больше информации."
+  },
+  {
+    "vacancy_id": "131605592",
+    "category": "doubt",
+    "subcategory": "junior position",
+    "score": 60.0,
+    "explanation": "Кандидат ищет удаленную работу и имеет базовые знания Python. Вакансия предполагает обучение, что может быть интересно, но не подходит под запрос на более квалифицированную роль.",
+    "reasons": [
+      {
+        "code": "remote",
+        "label": "Удаленная работа",
+        "group": "positive",
+        "detail": "Вакансия предлагает удаленную работу, что подходит кандидату.",
+        "weight": 90.0,
+        "subcategory": "location"
+      },
+      {
+        "code": "python",
+        "label": "Навыки Python",
+        "group": "positive",
+        "detail": "Кандидат обладает знаниями Python, что соответствует требованиям",
+        "weight": 80.0,
+        "subcategory": "skills"
+      },
+      {
+        "code": "junior_position",
+        "label": "Уровень должности",
+        "group": "negative",
+        "detail": "Кандидат не хочет заниматься слишком junior-роли, а вакансия таковой является",
+        "weight": 40.0,
+        "subcategory": "experience"
+      },
+      {
+        "code": "learning_opportunity",
+        "label": "Возможность обучения",
+        "group": "neutral",
+        "detail": "Вакансия предлагает обучение, но может быть не достаточно интересной для кандидата",
+        "weight": 50.0,
+        "subcategory": "career_growth"
+      }
+    ],
+    "recommended_action": "Провести дополнительное собеседование для оценки мотивации",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Вакансия не является слишком junior, но тем не менее требует выше уровня."
+  },
+  {
+    "vacancy_id": "131569861",
+    "category": "doubt",
+    "subcategory": "llm_review",
+    "score": 45.0,
+    "explanation": "Позиция trainee в IT может быть нерелевантна карьерным целям кандидата (HR/психология), несмотря на удалёнку и зарплатный порог.",
+    "reasons": [
+      {
+        "code": "remote_ok",
+        "label": "Удалённая работа доступна",
+        "group": "positive",
+        "detail": "Есть удалёнка",
+        "weight": 0.25,
+        "subcategory": "work_model"
+      },
+      {
+        "code": "salary_ok",
+        "label": "ЗП соответствует минимальному порогу",
+        "group": "positive",
+        "detail": "ЗП 60k выше min 40k",
+        "weight": 0.15,
+        "subcategory": "compensation"
+      },
+      {
+        "code": "fit_skill",
+        "label": "Python как предпочтительный навык",
+        "group": "neutral",
+        "detail": "Кандидат знает Python; роль не требует явного указания навыков",
+        "weight": 0.1,
+        "subcategory": "skills"
+      },
+      {
+        "code": "junior_risk",
+        "label": "Требования junior/ученик",
+        "group": "negative",
+        "detail": "Позиция явно junior; противоречит ожиданиям кандидата",
+        "weight": 0.25,
+        "subcategory": "level"
+      },
+      {
+        "code": "career_misfit",
+        "label": "Неподходящий карьерный фокус",
+        "group": "negative",
+        "detail": "Кандидат интересуется HR/психологией, роль IT-аналитика не соответствует",
+        "weight": 0.15,
+        "subcategory": "domain"
+      }
+    ],
+    "recommended_action": "Рассмотреть более senior/HR-tech или аналитические роли в области психологии и образования; приоритет на позиции с явной связью с HR/ИИ",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Проверено моделью openai/gpt-5-nano через OpenRouter."
+  },
+  {
+    "vacancy_id": "131475809",
+    "category": "fit",
+    "subcategory": "IT-наставничество",
+    "score": 85.0,
+    "explanation": "Кандидат имеет интерес к IT, опыт в образовании и способности к коммуникации, что соответствует требованиям наставника.",
+    "reasons": [
+      {
+        "code": "skill_alignment",
+        "label": "Совпадение навыков",
+        "group": "positive",
+        "detail": "Кандидат владеет Python, что является ожидаемым навыком для IT-наставника.",
+        "weight": 90.0,
+        "subcategory": "Python"
+      },
+      {
+        "code": "remote_friendly",
+        "label": "Удаленная работа",
+        "group": "positive",
+        "detail": "Вакансия предполагает удаленный формат работы, что совпадает с предпочтениями кандидата.",
+        "weight": 95.0,
+        "subcategory": "Удаленная работа"
+      },
+      {
+        "code": "education_relevance",
+        "label": "Связь с образованием",
+        "group": "positive",
+        "detail": "Кандидат проявляет интерес к сфере образования, что соответствует основной деятельности вакансии.",
+        "weight": 80.0,
+        "subcategory": "Образование"
+      }
+    ],
+    "recommended_action": "Рассмотреть возможность подачи заявки.",
+    "ready_for_apply": true,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Удаленная работа и навыки Python соответствуют пожеланиям кандидата."
+  },
+  {
+    "vacancy_id": "131499716",
+    "category": "no_fit",
+    "subcategory": "начальный уровень",
+    "score": 30.0,
+    "explanation": "Кандидат ищет более высокую позицию, чем 'ученик'.",
+    "reasons": [
+      {
+        "code": "junior_level",
+        "label": "Роль слишком junior",
+        "group": "negative",
+        "detail": "Кандидат не заинтересован в слишком начальных позициях.",
+        "weight": 80.0,
+        "subcategory": "опыт"
+      },
+      {
+        "code": "salary_expectation",
+        "label": "Зарплата на границе ожиданий",
+        "group": "neutral",
+        "detail": "Ожидания кандидата чуть выше минимальной зарплаты по вакансии.",
+        "weight": 50.0,
+        "subcategory": "финансы"
+      },
+      {
+        "code": "remote_preference",
+        "label": "Вакансия удаленная",
+        "group": "positive",
+        "detail": "Соответствует предпочтениям кандидата по удаленной работе.",
+        "weight": 70.0,
+        "subcategory": "удаленная работа"
+      }
+    ],
+    "recommended_action": "Искать вакансии уровня junior или выше.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Вакансия направлена на обучение, что не соответствует требованиям кандидата на более серьезную роль."
+  },
+  {
+    "vacancy_id": "131459901",
+    "category": "doubt",
+    "subcategory": "Junior/trainee позиция",
+    "score": 52.0,
+    "explanation": "Вакансия trainee/ученик: риск несоответствия желаемому уровню. Есть удаленка и зарплата подходящая, но отсутствуют явные требования к Python и задачи не описаны.",
+    "reasons": [
+      {
+        "code": "remote_ok",
+        "label": "Удаленная работа",
+        "group": "positive",
+        "detail": "Полностью удаленная работа соответствует предпочтению.",
+        "weight": 25.0,
+        "subcategory": "remote"
+      },
+      {
+        "code": "salary_ok",
+        "label": "Соответствие зарплате",
+        "group": "positive",
+        "detail": "Зарплата 60k соответствует/превышает минимальный порог кандидата.",
+        "weight": 20.0,
+        "subcategory": "compensation"
+      },
+      {
+        "code": "python_miss",
+        "label": "Python привязка",
+        "group": "neutral",
+        "detail": "Не указаны требования к Python/технологиям, что может снизить соответствие.",
+        "weight": 15.0,
+        "subcategory": "skills"
+      },
+      {
+        "code": "junior_level",
+        "label": "Уровень роли",
+        "group": "negative",
+        "detail": "Название вакансии 'ученик' указывает на низкий уровень, что противоречит желанию не junior.",
+        "weight": 25.0,
+        "subcategory": "role_level"
+      },
+      {
+        "code": "no_description",
+        "label": "Описание вакансии",
+        "group": "neutral",
+        "detail": "Описание пустое, неясно задачи и требования.",
+        "weight": 10.0,
+        "subcategory": "overview"
+      }
+    ],
+    "recommended_action": "Уточнить уровень роли и перспективы перехода к аналитике; проверить наличие задач и требований по Python; решить, подходит ли как стартовый этап карьеры.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Проверено моделью openai/gpt-5-nano через OpenRouter."
+  },
+  {
+    "vacancy_id": "131517980",
+    "category": "doubt",
+    "subcategory": "Практика",
+    "score": 60.0,
+    "explanation": "Вакансия требует разработки IT-кейсов, что может быть интересно кандидату с базовыми знаниями в Python. Однако требуется больше специфического опыта и навыков в данной области.",
+    "reasons": [
+      {
+        "code": "skill_fit",
+        "label": "Навыки Python",
+        "group": "positive",
+        "detail": "Кандидат имеет начальные знания Python, что соответствует требованиям вакансии.",
+        "weight": 70.0,
+        "subcategory": "Навыки"
+      },
+      {
+        "code": "experience_level",
+        "label": "Отсутствие опыта в написании IT-кейсов",
+        "group": "negative",
+        "detail": "В вакансии требуются специфические навыки, которые могут отсутствовать у кандидата.",
+        "weight": 40.0,
+        "subcategory": "Опыт"
+      },
+      {
+        "code": "employment_type",
+        "label": "Удаленная работа",
+        "group": "positive",
+        "detail": "Кандидат ищет удаленную работу, что соответствует условиям вакансии.",
+        "weight": 80.0,
+        "subcategory": "Тип занятости"
+      }
+    ],
+    "recommended_action": "Рассмотреть как возможный вариант, но уточнить детали о необходимых навыках и опыте.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Кандидат имеет базовые знания в Python, что подходит, но нет ясной уверенности в соответствии требованиям."
+  },
+  {
+    "vacancy_id": "131411638",
+    "category": "doubt",
+    "subcategory": "analyst",
+    "score": 50.0,
+    "explanation": "Вакансия ученика, не соответствует ожиданиям по уровню (junior уровень).",
+    "reasons": [
+      {
+        "code": "level",
+        "label": "Уровень вакансии",
+        "group": "negative",
+        "detail": "Вакансия на уровне младшего специалиста, кандидат ищет более высокую позицию.",
+        "weight": 30.0,
+        "subcategory": "junior"
+      },
+      {
+        "code": "salary",
+        "label": "Зарплата",
+        "group": "positive",
+        "detail": "Заработная плата удовлетворяет минимальным требованиям кандидата.",
+        "weight": 20.0,
+        "subcategory": "salary"
+      },
+      {
+        "code": "remote",
+        "label": "Удаленная работа",
+        "group": "positive",
+        "detail": "Полностью удаленная работа соответствует ожиданиям кандидата.",
+        "weight": 30.0,
+        "subcategory": "remote"
+      }
+    ],
+    "recommended_action": "Рассмотреть более подходящие вакансии.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Вакансия с низким соответствием основным пожеланиям кандидата."
+  },
+  {
+    "vacancy_id": "131512465",
+    "category": "doubt",
+    "subcategory": "llm_review",
+    "score": 45.0,
+    "explanation": "Уровень вакансии стажёр не совпадает с вероятным ожиданием кандидата; удалёнка и Python-навышки подходят; зарплата не указана.",
+    "reasons": [
+      {
+        "code": "level_mismatch",
+        "label": "Уровень вакансии",
+        "group": "negative",
+        "detail": "Стажёр/Junior не соответствует ожиданиям кандидата",
+        "weight": 0.6,
+        "subcategory": "experience"
+      },
+      {
+        "code": "remote_ok",
+        "label": "Формат работы",
+        "group": "positive",
+        "detail": "Удалёнка доступна; соответствует предпочтению",
+        "weight": 0.25,
+        "subcategory": "work_format"
+      },
+      {
+        "code": "skills_match",
+        "label": "Навык Python",
+        "group": "positive",
+        "detail": "Python указан как предпочтительный навык; кандидат имеет Python",
+        "weight": 0.1,
+        "subcategory": "skills"
+      },
+      {
+        "code": "salary_unknown",
+        "label": "Зарплата",
+        "group": "neutral",
+        "detail": "Зарплата не указана; неясно, подходит ли ожиданиям 40k",
+        "weight": 0.05,
+        "subcategory": "compensation"
+      }
+    ],
+    "recommended_action": "Рассмотреть только если вакансия допускает более высокий уровень или обсудить ожидаемую зарплату.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Сильные стороны: удалёнка, наличие Python в предпочтениях. Слабые стороны: стажёрский уровень вакансии, неясная зарплата."
+  },
+  {
+    "vacancy_id": "131129691",
+    "category": "doubt",
+    "subcategory": "HR",
+    "score": 65.0,
+    "explanation": "Кандидат имеет навыки Python и ищет удаленную работу, но нет опыта в HR и нет соответствующих ключевых навыков.",
+    "reasons": [
+      {
+        "code": "experience_match",
+        "label": "Соответствие опыту",
+        "group": "negative",
+        "detail": "Кандидат не имеет опыта в HR.",
+        "weight": 20.0,
+        "subcategory": "Опыт"
+      },
+      {
+        "code": "skills_match",
+        "label": "Соответствие навыкам",
+        "group": "positive",
+        "detail": "Кандидат имеет знания Python, что подходит для анализа резюме в вакансиях IT.",
+        "weight": 30.0,
+        "subcategory": "Навыки"
+      },
+      {
+        "code": "remote_work",
+        "label": "Удаленная работа",
+        "group": "positive",
+        "detail": "Вакансия полностью удаленная, что соответствует предпочтениям кандидата.",
+        "weight": 50.0,
+        "subcategory": "Условия"
+      }
+    ],
+    "recommended_action": "Рассмотреть вакансии с акцентом на IT и более ясные HR роли.",
+    "ready_for_apply": false,
+    "review_strategy": "openrouter_agent",
+    "review_notes": "Вакансия ориентирована на управленческие функции в HR, что может не соответствовать опыту кандидата."
+  }
+]

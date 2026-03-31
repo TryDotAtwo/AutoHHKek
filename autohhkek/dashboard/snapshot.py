@@ -86,6 +86,118 @@ READY_STATE_META = {
 FRESHNESS_WINDOW_DAYS = 21
 AUTO_BOOTSTRAP_COOLDOWN_HOURS = 6
 
+# Override legacy mojibake labels with clean UI text.
+FIT_LABELS = {
+    FitCategory.FIT.value: "Подходит",
+    FitCategory.DOUBT.value: "Сомневаюсь",
+    FitCategory.NO_FIT.value: "Не подходит",
+}
+
+MODE_LABELS = {
+    "analyze": "Анализ вакансий",
+    "apply_plan": "План отклика",
+    "repair": "Починка сценариев",
+    "full_pipeline": "Полный пайплайн",
+}
+
+RUN_STATUS_LABELS = {
+    "completed": "Завершён",
+    "failed": "С ошибкой",
+    "running": "Выполняется",
+    "idle": "Ожидает запуска",
+}
+
+REPAIR_STATUS_LABELS = {
+    "prepared": "Подготовлено",
+    "running": "В работе",
+    "ready": "Готово",
+    "completed": "Завершено",
+    "failed": "Ошибка",
+    "error": "Ошибка",
+    "unavailable": "Недоступно",
+}
+
+READY_STATE_META = {
+    "needs_mode": {
+        "label": "Нужно выбрать режим",
+        "detail": "Сначала выберите режим работы, чтобы дашборд понимал, какой сценарий запускать.",
+    },
+    "needs_intake": {
+        "label": "Нужно собрать анамнез",
+        "detail": "Перед первым запуском нужно заполнить анкету кандидата и сохранить базовые вводные.",
+    },
+    "needs_rules": {
+        "label": "Нужно собрать правила",
+        "detail": "После анкеты нужно сгенерировать правила поиска и отбора вакансий.",
+    },
+    "repair_attention": {
+        "label": "Нужно разобрать repair queue",
+        "detail": "Есть незавершённые DOM-поломки. Лучше закрыть их до следующего массового запуска.",
+    },
+    "ready_to_run": {
+        "label": "Можно запускать режим",
+        "detail": "Onboarding завершён. Можно запускать выбранный режим и собирать свежую очередь вакансий.",
+    },
+    "needs_apply_plan": {
+        "label": "Нужен план отклика",
+        "detail": "Подходящие вакансии уже найдены. Следующий шаг: подготовить apply plan.",
+    },
+    "ready": {
+        "label": "Рабочая зона готова",
+        "detail": "Данные собраны, дашборд показывает очередь и ждёт следующего действия.",
+    },
+}
+
+
+def _repair_mojibake_text(value: str) -> str:
+    current = str(value or "")
+    def _marker_count(text: str) -> int:
+        markers = 0
+        for first, second in zip(text, text[1:]):
+            if first in {"Р", "С"} and second and second not in "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя \t\r\n":
+                if ord(second) > 127:
+                    markers += 1
+            if first in {"Ð", "Ñ"} and second and ord(second) > 127:
+                markers += 1
+        markers += text.count("�") * 3
+        markers += text.count("пїЅ") * 3
+        markers += text.count("\\x") * 2
+        markers += text.count("07@") * 2
+        return markers
+
+    if _marker_count(current) < 2:
+        return current
+    for codec in ("cp1251", "latin1"):
+        for _ in range(2):
+            try:
+                candidate = current.encode(codec, errors="ignore").decode("utf-8", errors="ignore")
+            except UnicodeError:
+                break
+            if not candidate or candidate == current:
+                break
+            if _marker_count(candidate) >= _marker_count(current):
+                break
+            current = candidate
+    return current
+
+
+def _is_garbled_text(value: str) -> bool:
+    text = str(value or "")
+    if not text.strip():
+        return False
+    control_count = sum(1 for char in text if ord(char) < 32 and char not in "\r\n\t")
+    suspicious_tokens = text.count("\\x") + text.count("�") + text.count("пїЅ") + text.count("07@") + text.count("!\\x")
+    return control_count >= 2 or suspicious_tokens >= 1
+
+
+def _clean_text(value: Any, fallback: str = "") -> str:
+    text = _repair_mojibake_text(str(value or ""))
+    text = "".join(char for char in text if ord(char) >= 32 or char in "\r\n\t")
+    text = " ".join(text.split())
+    if _is_garbled_text(text):
+        return fallback
+    return text or fallback
+
 
 def _file_timestamp(path: Path) -> str:
     if not path.exists():
@@ -114,7 +226,26 @@ def _is_recent_timestamp(value: str, *, hours: int) -> bool:
 
 
 def _build_freshness(store: WorkspaceStore, project_root: Path, analysis_state: dict[str, Any]) -> dict[str, Any]:
+    state_file_exists = store.hh_state_path.exists()
+    hh_resumes = store.load_hh_resumes()
+    selected_resume_id = store.load_selected_resume_id()
+    if not state_file_exists:
+        live_refresh_message = "Нужен вход в hh.ru, чтобы искать новые вакансии."
+    elif not hh_resumes:
+        live_refresh_message = "После входа нужно подтянуть резюме с hh.ru."
+    elif not selected_resume_id:
+        live_refresh_message = "Выберите резюме, по которому нужно искать вакансии."
+    else:
+        live_refresh_message = "Поиск новых вакансий по hh.ru готов."
+    if hh_resumes and len(hh_resumes) > 1 and not selected_resume_id:
+        live_refresh_message = "На hh.ru найдено несколько резюме. Выберите одно резюме для поиска."
+    elif hh_resumes and len(hh_resumes) == 1 and selected_resume_id:
+        selected_title = next((item.get("title", "") for item in hh_resumes if item.get("resume_id") == selected_resume_id), "")
+        live_refresh_message = f"Для live refresh выбрано резюме: {selected_title or selected_resume_id}."
+
     dashboard_state = store.load_dashboard_state()
+    runtime_browser_ready = dashboard_state.get("local_playwright_runtime_ready")
+    runtime_browser_message = str(dashboard_state.get("local_playwright_runtime_message") or "")
     timestamps = {
         "seen_at": str(dashboard_state.get("last_seen_at") or ""),
         "hh_login_at": str(dashboard_state.get("last_hh_login_at") or _file_timestamp(store.hh_state_path)),
@@ -168,7 +299,7 @@ def _repair_status_label(status: str) -> str:
 def _latin_dominant(text: str) -> bool:
     value = str(text or "")
     latin = sum(1 for char in value if "a" <= char.lower() <= "z")
-    cyrillic = sum(1 for char in value if "а" <= char.lower() <= "я")
+    cyrillic = sum(1 for char in value if "а" <= char.lower() <= "я" or char.lower() == "ё")
     return latin > cyrillic and latin >= 8
 
 
@@ -207,8 +338,8 @@ def _localized_reason_text(reason) -> tuple[str, str]:
 
 
 def _vacancy_decision_explanation(assessment) -> str:
-    review_notes = str(assessment.review_notes or "").strip()
-    explanation = str(assessment.explanation or "").strip()
+    review_notes = _clean_text(assessment.review_notes)
+    explanation = _clean_text(assessment.explanation)
     if review_notes and "legacy resume cache" not in review_notes.lower() and not _latin_dominant(review_notes):
         return review_notes
     if explanation and "score " not in explanation.lower() and not _latin_dominant(explanation):
@@ -231,9 +362,9 @@ def _vacancy_card(vacancy, assessment) -> dict[str, Any]:
     decision_reason = _vacancy_decision_explanation(assessment)
     return {
         "id": vacancy.vacancy_id,
-        "title": vacancy.title,
-        "company": vacancy.company,
-        "location": vacancy.location,
+        "title": _clean_text(vacancy.title, "Название вакансии требует повторной загрузки"),
+        "company": _clean_text(vacancy.company, "не указана"),
+        "location": _clean_text(vacancy.location, "не указана"),
         "url": vacancy.url,
         "score": assessment.score,
         "category": category,
@@ -241,14 +372,14 @@ def _vacancy_card(vacancy, assessment) -> dict[str, Any]:
         "subcategory": assessment.subcategory,
         "reason_summary": decision_reason,
         "explanation": decision_reason,
-        "raw_explanation": assessment.explanation,
+        "raw_explanation": _clean_text(assessment.explanation),
         "recommended_action": assessment.recommended_action,
         "ready_for_apply": assessment.ready_for_apply,
-        "review_strategy": assessment.review_strategy,
-        "review_notes": assessment.review_notes,
+        "review_strategy": _clean_text(assessment.review_strategy),
+        "review_notes": _clean_text(assessment.review_notes),
         "reasons": reasons,
-        "summary": vacancy.summary,
-        "description": vacancy.description[:1500],
+        "summary": _clean_text(vacancy.summary, "Краткое описание вакансии недоступно."),
+        "description": _clean_text(vacancy.description[:1500], "Описание вакансии требует повторной загрузки."),
         "skills": vacancy.skills,
     }
 
@@ -537,7 +668,14 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
     all_assessments = sorted(store.load_assessments(), key=lambda item: item.score, reverse=True)
     display_assessments = all_assessments[:limit]
     runs = [item.to_dict() for item in store.list_runs(limit=8)]
-    events = store.load_events(limit=20)
+    events = [
+        {
+            **item,
+            "kind": _clean_text(item.get("kind"), "событие"),
+            "message": _clean_text(item.get("message"), "Подробности события недоступны."),
+        }
+        for item in store.load_events(limit=20)
+    ]
     rules_markdown = store.load_selection_rules()
     imported_rules = store.load_imported_rules()
     filter_plan = store.load_filter_plan() or {}
@@ -569,6 +707,8 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
         selected_title = next((item.get("title", "") for item in hh_resumes if item.get("resume_id") == selected_resume_id), "")
         live_refresh_message = f"Для live refresh выбрано резюме: {selected_title or selected_resume_id}."
     dashboard_state = store.load_dashboard_state()
+    runtime_browser_ready = dashboard_state.get("local_playwright_runtime_ready")
+    runtime_browser_message = str(dashboard_state.get("local_playwright_runtime_message") or "")
     refresh_result = dict(analysis_state.get("refresh_result") or {})
     live_refresh_stats = {
         "total_available": int(dashboard_state.get("last_live_refresh_total_available") or refresh_result.get("total_available") or len(vacancies)),
@@ -622,7 +762,7 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
     elif counts["assessed"] > 0 and int(analysis_state.get("llm_reviewed_count") or 0) <= 0:
         analysis_state["stale_reason"] = "Current vacancy cards were not confirmed by an LLM yet. Run Analyze with a ready backend."
     else:
-        analysis_state["stale_reason"] = str(analysis_state.get("stale_reason") or "")
+        analysis_state["stale_reason"] = _clean_text(analysis_state.get("stale_reason"))
 
     rules_parts = split_rules_markdown(rules_markdown)
     apply_bucket = str(dashboard_state.get("apply_daily_bucket") or "")
@@ -637,6 +777,8 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
         "system_rules_preview": rules_parts["system"][:2000],
         "user_rules_preview": rules_parts["user"][:3000],
         "user_rules_contract": dict(dashboard_state.get("intake_user_rules_contract") or {}),
+        "resume_intake_analysis": dict(dashboard_state.get("resume_intake_analysis") or {}),
+        "resume_intake_analysis_error": str(dashboard_state.get("resume_intake_analysis_error") or ""),
         "imported_rules": imported_rules,
     }
     freshness = _build_freshness(store, project_root, analysis_state)
@@ -670,6 +812,27 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
         runs=runs,
         analysis_state=analysis_state,
     )
+    operator_summary["blocking_issues"] = [_clean_text(item, "Требуется дополнительная проверка состояния.") for item in operator_summary.get("blocking_issues", [])]
+    operator_summary["attention_items"] = [_clean_text(item, "Требуется дополнительная проверка данных.") for item in operator_summary.get("attention_items", [])]
+    if isinstance(operator_summary.get("next_recommended_action"), dict):
+        recommended_by_state = {
+            "needs_mode": ("Выбрать режим", "Сначала выберите режим работы."),
+            "needs_intake": ("Заполнить анкету", "Нужно собрать и подтвердить требования кандидата."),
+            "needs_rules": ("Собрать правила", "Нужно пересобрать правила поиска и отбора."),
+            "repair_attention": ("Открыть repair queue", "Нужно разобрать незавершённые DOM-поломки."),
+            "ready_to_run": ("Запустить выбранный режим", f"Режим «{_mode_label(runtime_settings.dashboard_mode)}» готов к запуску."),
+            "needs_apply_plan": ("Собрать план отклика", "Для подходящих вакансий нужно подготовить apply plan."),
+            "ready": ("Открыть вакансии", "Очередь готова, можно переходить к разбору карточек."),
+        }
+        fallback_label, fallback_reason = recommended_by_state.get(
+            operator_summary["ready_state"],
+            ("Открыть следующий шаг", "Откройте следующий рекомендованный шаг."),
+        )
+        operator_summary["next_recommended_action"] = {
+            **operator_summary["next_recommended_action"],
+            "label": fallback_label,
+            "reason": fallback_reason,
+        }
 
     ready_meta = READY_STATE_META[operator_summary["ready_state"]]
     setup_summary.update(
@@ -707,6 +870,9 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
         "openrouter_ready": bool(runtime_capabilities.get("openrouter_ready")),
         "g4f_ready": bool(runtime_capabilities.get("llm_backends", {}).get("g4f", {}).get("ready")),
         "playwright_mcp_ready": bool(runtime_capabilities.get("playwright_mcp_ready")),
+        "local_playwright_ready": bool(runtime_capabilities.get("local_playwright_ready")) if runtime_browser_ready is None else bool(runtime_browser_ready),
+        "local_playwright_subprocess_error": str(runtime_capabilities.get("local_playwright_subprocess_error") or ""),
+        "local_playwright_launch_error": runtime_browser_message or str(runtime_capabilities.get("local_playwright_launch_error") or ""),
     }
     last_run_summary = operator_summary["last_run_summary"]
     selected_resume_title = next((item.get("title", "") for item in hh_resumes if item.get("resume_id") == selected_resume_id), "")
@@ -762,6 +928,11 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
     }
     intake_dialog = dict(dashboard_state.get("intake_dialog") or {})
     llm_gate = dict(dashboard_state.get("llm_gate") or {})
+    llm_gate_stage = str(llm_gate.get("stage") or "")
+    if llm_gate_stage == "resume_intake" and bool(setup_summary.get("intake_ready")):
+        llm_gate = {}
+    elif llm_gate_stage == "filter_plan" and bool(setup_summary.get("filter_plan_ready")):
+        llm_gate = {}
     apply_batch_job = {
         "running": bool(dashboard_state.get("apply_batch_running")),
         "category": str(dashboard_state.get("apply_batch_category") or ""),
@@ -814,6 +985,7 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
                 "hh-login",
                 "hh-resumes",
                 "select-account",
+                "delete-account",
                 "select-resume",
                 "save-cover-letter",
                 "apply-batch",
