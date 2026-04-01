@@ -16,6 +16,21 @@ from autohhkek.services.runtime_settings import AVAILABLE_DASHBOARD_MODES, AVAIL
 from autohhkek.services.storage import WorkspaceStore, build_vacancy_snapshot_hash
 
 
+def _compact_resume_sync_extracted(raw: object) -> dict[str, Any]:
+    """Trim last_resume_sync_extracted for the dashboard payload (no huge cleaned_text)."""
+    if not isinstance(raw, dict) or not raw:
+        return {}
+    skills = raw.get("skills") or []
+    titles = raw.get("target_titles") or []
+    return {
+        "headline": str(raw.get("headline") or "").strip(),
+        "summary": str(raw.get("summary") or "").strip()[:4000],
+        "skills": [str(item) for item in list(skills)[:40]],
+        "target_titles": [str(item) for item in list(titles)[:20]],
+        "experience_years": float(raw.get("experience_years") or 0) or 0.0,
+    }
+
+
 FIT_LABELS = {
     FitCategory.FIT.value: "Подходит",
     FitCategory.DOUBT.value: "Сомневаюсь",
@@ -779,6 +794,7 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
         "user_rules_contract": dict(dashboard_state.get("intake_user_rules_contract") or {}),
         "resume_intake_analysis": dict(dashboard_state.get("resume_intake_analysis") or {}),
         "resume_intake_analysis_error": str(dashboard_state.get("resume_intake_analysis_error") or ""),
+        "resume_sync_extracted": _compact_resume_sync_extracted(dashboard_state.get("last_resume_sync_extracted")),
         "imported_rules": imported_rules,
     }
     freshness = _build_freshness(store, project_root, analysis_state)

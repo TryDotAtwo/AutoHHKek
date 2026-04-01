@@ -23,6 +23,8 @@ def _cleanup_resume_title(value: str) -> str:
     title = re.sub(r"<[^>]+>", " ", str(value or ""))
     title = html_lib.unescape(title).replace("\xa0", " ")
     title = re.sub(r"\s+", " ", title).strip()
+    # hh.ru sometimes concatenates "Обновлено…" without a space after the title (e.g. "…LLMsОбновлено")
+    title = re.sub(r"(?<!\s)(Обновлено\b.*)$", "", title, flags=re.IGNORECASE)
     title = re.sub(r"\s+Обновлено.*$", "", title, flags=re.IGNORECASE)
     title = re.sub(r"\s*,?\s*Подключено автоподнятие.*$", "", title, flags=re.IGNORECASE)
     return title.strip(" ,") or ""

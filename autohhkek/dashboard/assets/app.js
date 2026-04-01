@@ -358,7 +358,11 @@ function isIntakeReady(snapshot) {
 }
 
 function hhLoginReady(snapshot) {
-  return Boolean(snapshot?.hh_login?.state_file_exists);
+  if (Boolean(snapshot?.hh_login?.state_file_exists)) return true;
+  const ps = snapshot?.profile_sync?.status || "";
+  if (["updated", "no_changes"].includes(ps)) return true;
+  if (snapshot?.selected_resume_id && Array.isArray(snapshot?.hh_resumes) && snapshot.hh_resumes.length > 0) return true;
+  return false;
 }
 
 function isIntakeConfirmed(snapshot) {
@@ -410,22 +414,43 @@ function intakePriorityLabel(question) {
 
 function intakeResumeFacts(snapshot, context = {}) {
   const analysis = snapshot.intake?.resume_intake_analysis || {};
+  const extracted = snapshot.intake?.resume_sync_extracted || {};
+  const anam = snapshot.intake?.anamnesis || {};
   const profileSync = snapshot.profile_sync || {};
   const profileSyncReady = ["updated", "no_changes"].includes(profileSync.status || "");
-  const resumeTitle = context.resume_title || (profileSyncReady ? profileSync.resume_title || "" : "");
+  const resumeTitle =
+    context.resume_title ||
+    (profileSyncReady ? profileSync.resume_title || "" : "") ||
+    String(extracted.headline || "").trim() ||
+    String(anam.headline || "").trim();
   const roles = Array.isArray(context.inferred_roles) && context.inferred_roles.length
     ? context.inferred_roles
-    : Array.isArray(analysis.inferred_roles) ? analysis.inferred_roles : [];
+    : Array.isArray(analysis.inferred_roles) && analysis.inferred_roles.length
+      ? analysis.inferred_roles
+      : Array.isArray(extracted.target_titles) && extracted.target_titles.length
+        ? extracted.target_titles
+        : [];
   const skills = Array.isArray(context.detected_skills) && context.detected_skills.length
     ? context.detected_skills
-    : Array.isArray(analysis.core_skills) ? analysis.core_skills : [];
+    : Array.isArray(analysis.core_skills) && analysis.core_skills.length
+      ? analysis.core_skills
+      : Array.isArray(extracted.skills) && extracted.skills.length
+        ? extracted.skills
+        : Array.isArray(anam.primary_skills) && anam.primary_skills.length
+          ? anam.primary_skills
+          : [];
   const missingTopics = Array.isArray(context.missing_topics) && context.missing_topics.length
     ? context.missing_topics
     : Array.isArray(analysis.missing_topics) ? analysis.missing_topics : [];
   const domains = Array.isArray(context.detected_domains) && context.detected_domains.length
     ? context.detected_domains
     : Array.isArray(analysis.domains) ? analysis.domains : [];
-  const experienceYears = Number(context.detected_experience || snapshot.intake?.anamnesis?.experience_years || 0);
+  const experienceYears = Number(
+    context.detected_experience ??
+      extracted.experience_years ??
+      snapshot.intake?.anamnesis?.experience_years ??
+      0,
+  );
   return { resumeTitle, roles, skills, missingTopics, domains, experienceYears };
 }
 
@@ -610,10 +635,16 @@ function intakePipelineCards(snapshot, context = {}) {
 function intakeResumeIntel(snapshot, context = {}) {
   const facts = intakeResumeFacts(snapshot, context);
   const analysis = snapshot.intake?.resume_intake_analysis || {};
+  const extracted = snapshot.intake?.resume_sync_extracted || {};
+  const anam = snapshot.intake?.anamnesis || {};
+  const summaryFallback =
+    String(analysis.summary || "").trim() ||
+    String(extracted.summary || "").trim() ||
+    String(anam.summary || "").trim();
   const missing = formatIntakeMissing(snapshot.setup_summary?.intake_missing || []);
   return [
     ["Заголовок", facts.resumeTitle || "ещё не извлекли"],
-    ["Сводка", String(analysis.summary || "").trim() || "ещё не собрали"],
+    ["Сводка", summaryFallback || "ещё не собрали"],
     ["Роли", facts.roles.length ? facts.roles.join(", ") : "ещё не выделили"],
     ["Навыки", facts.skills.length ? facts.skills.slice(0, 8).join(", ") : "ещё не выделили"],
     ["Домены", facts.domains.length ? facts.domains.slice(0, 4).join(", ") : "не определены"],
@@ -814,6 +845,13 @@ function renderTabbar() {
   );
 }
 
+function stripResumeTitleNoise(value) {
+  return String(value || "")
+    .replace(/(?<!\s)(Обновлено\b[\s\S]*)$/i, "")
+    .replace(/\s+Обновлено[\s\S]*$/i, "")
+    .trim();
+}
+
 function pipelineStatusMeta(status) {
   switch (status) {
     case "completed":
@@ -863,14 +901,14 @@ function buildPipeline(snapshot) {
       summary: !hasLogin
         ? "Пока нет входа в hh.ru, резюме недоступны."
         : selectedResume
-          ? `Для поиска выбрано резюме: ${snapshot.selected_resume_title || snapshot.selected_resume_id}.`
+          ? `Для поиска выбрано резюме: ${stripResumeTitleNoise(snapshot.selected_resume_title) || snapshot.selected_resume_id}.`
           : multipleResumes
             ? "На hh.ru найдено несколько резюме. Нужно выбрать одно для поиска."
             : hhResumes.length
               ? "Резюме найдено, его можно использовать для live search."
               : "Нужно обновить список резюме с hh.ru.",
       detail: snapshot.setup_summary?.live_refresh_message || "Этот шаг нужен, чтобы агент опирался на правильное резюме и актуальный профиль кандидата.",
-      action: !hasLogin ? null : selectedResume ? null : { id: "hh-resumes", label: "Обновить список резюме" },
+      action: !hasLogin ? null : { id: "hh-resumes", label: selectedResume ? "Изменить резюме" : "Обновить список резюме" },
     },
     {
       id: "intake",

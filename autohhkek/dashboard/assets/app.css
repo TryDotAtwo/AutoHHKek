@@ -148,6 +148,9 @@ body {
 
 .sidebar {
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .workspace {
@@ -155,7 +158,9 @@ body {
   min-width: 22rem;
   flex-direction: column;
   overflow: auto;
+  overflow-x: hidden;
   padding-right: 0.25rem;
+  min-height: 0;
 }
 
 .workspace-head {
@@ -183,18 +188,32 @@ body {
 }
 
 .chat-panel {
-  display: grid;
-  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
-  gap: 0.55rem 0.7rem;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.chat-panel .chat-panel-head,
+.chat-panel .chat-agent-activity,
+.chat-panel #chat-lock-note,
+.chat-panel .chip-row {
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .chat-composer {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
   min-width: 0;
-  align-self: stretch;
+  flex: 0 0 auto;
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(31, 37, 40, 0.08);
 }
 
 .chat-composer .chat-status {
@@ -228,7 +247,7 @@ body {
 
 .intake-stage {
   display: grid;
-  gap: 0.65rem;
+  gap: 1.15rem;
   min-height: calc(100vh - 7rem);
   align-content: start;
 }
@@ -247,17 +266,24 @@ body {
 
 .intake-stage-grid {
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .intake-stage-grid--compact {
-  gap: 0.7rem;
+  gap: 0.95rem;
+}
+
+.intake-stage .panel--subtle {
+  margin-top: 0.35rem;
 }
 
 .intake-dialog-shell {
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem 1.15rem;
+  margin-top: 0.35rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(31, 37, 40, 0.06);
   grid-template-columns: minmax(0, 1.3fr) minmax(18rem, 0.7fr);
   align-items: start;
 }
@@ -266,16 +292,16 @@ body {
   min-height: 14rem;
   max-height: 36vh;
   overflow: auto;
-  padding: 0.75rem;
+  padding: 1rem 1.05rem;
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.75);
   display: grid;
-  gap: 0.8rem;
+  gap: 1rem;
 }
 
 .intake-question-card {
-  padding: 0.75rem 0.85rem;
+  padding: 1rem 1.05rem;
   border-radius: var(--radius);
   border: 1px solid rgba(44, 93, 182, 0.16);
   background: linear-gradient(180deg, rgba(44, 93, 182, 0.08), rgba(255, 255, 255, 0.92));
@@ -285,17 +311,18 @@ body {
 .intake-question-card strong {
   display: block;
   font-size: 1rem;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.45rem;
 }
 
 .intake-question-card p {
-  margin: 0.35rem 0 0;
+  margin: 0.5rem 0 0;
 }
 
 .intake-form {
   grid-column: 1 / -1;
   display: grid;
-  gap: 0.7rem;
+  gap: 0.95rem;
+  padding-top: 0.35rem;
 }
 
 .dashboard-shell--intake .sidebar,
@@ -544,7 +571,8 @@ body {
 .intake-status-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.55rem;
+  gap: 0.65rem;
+  margin-bottom: 0.15rem;
 }
 
 .status-card {
@@ -672,11 +700,14 @@ body {
 .chat-log {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
-  min-height: 0;
-  overflow: auto;
+  gap: 0.85rem;
+  flex: 1 1 auto;
+  min-height: 8rem;
+  overflow-y: auto;
   overflow-x: hidden;
-  padding: 0.35rem 0.1rem 0.5rem;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 0.35rem 0.65rem 0.5rem 0.1rem;
   position: relative;
   z-index: 1;
 }
@@ -1268,6 +1299,7 @@ a {
 
 .pipeline-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.05rem;
 }
 
 .focus-grid,
@@ -1296,7 +1328,10 @@ a {
 }
 
 .account-card {
-  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 0.75rem;
   border-radius: 16px;
 }
 
@@ -1311,7 +1346,7 @@ a {
 }
 
 .account-card__actions {
-  margin-top: 0.45rem;
+  margin-top: 0.15rem;
   flex-wrap: wrap;
 }
 
@@ -1326,11 +1361,19 @@ a {
 .pipeline-step,
 .resume-card,
 .reason-lane {
-  padding: 0.75rem;
+  padding: 0.95rem 1rem;
   border-radius: 16px;
   border: 1px solid var(--line);
   background: var(--paper-strong);
   min-width: 0;
+}
+
+.pipeline-step p {
+  line-height: 1.5;
+}
+
+.pipeline-step .pipeline-step-actions {
+  margin-top: 0.65rem;
 }
 
 .pipeline-step--active {
@@ -1433,6 +1476,17 @@ a {
 
 .resume-card-actions {
   margin-top: 0.8rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.resume-card-actions > .button,
+.resume-card-actions > a.button {
+  min-width: 0;
+  justify-self: stretch;
+  text-align: center;
 }
 
 .reason-lane--positive {

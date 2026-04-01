@@ -930,13 +930,15 @@ def _handler_factory(project_root: Path):
                         resume_id = str(body.get("resume_id") or "").strip()
                         result = select_resume_for_search(store, resume_id=resume_id)
                         if resume_id:
-                            result["profile_sync"] = HHResumeProfileSync(store).sync_selected_resume()
-                        if resume_id and store.load_preferences() and store.load_anamnesis():
-                            auto_resume = run_resume(store)
-                            result["auto_resume"] = auto_resume
-                            resume_message = str(auto_resume.get("message") or "").strip()
-                            if resume_message:
-                                result["message"] = f"{str(result.get('message') or '').strip()} {resume_message}".strip()
+                            sync_result = HHResumeProfileSync(store).sync_selected_resume()
+                            result["profile_sync"] = sync_result
+                            sync_ok = str(sync_result.get("status") or "") in ("updated", "no_changes")
+                            if sync_ok and store.load_preferences() and store.load_anamnesis():
+                                auto_resume = run_resume(store)
+                                result["auto_resume"] = auto_resume
+                                resume_message = str(auto_resume.get("message") or "").strip()
+                                if resume_message:
+                                    result["message"] = f"{str(result.get('message') or '').strip()} {resume_message}".strip()
                     elif parsed.path == "/api/actions/select-account":
                         result = select_hh_account(store, account_key=str(body.get("account_key") or ""))
                     elif parsed.path == "/api/actions/delete-account":

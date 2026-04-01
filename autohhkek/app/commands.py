@@ -1341,8 +1341,11 @@ def select_hh_account(store: WorkspaceStore, *, account_key: str) -> dict[str, A
         if selected_resume_id:
             switched_store.save_selected_resume_id(selected_resume_id)
     profile_sync: dict[str, Any] = {}
+    auto_resume: dict[str, Any] = {}
     if selected_resume_id:
         profile_sync = HHResumeProfileSync(switched_store).sync_selected_resume()
+        if str(profile_sync.get("status") or "") in ("updated", "no_changes") and switched_store.load_preferences() and switched_store.load_anamnesis():
+            auto_resume = run_resume(switched_store)
     switched_store.record_event(
         "hh-account",
         f"Switched active hh account to {accounts[normalized].get('display_name') or normalized}.",
@@ -1353,6 +1356,7 @@ def select_hh_account(store: WorkspaceStore, *, account_key: str) -> dict[str, A
         "account_key": normalized,
         "selected_resume_id": selected_resume_id,
         "profile_sync": profile_sync,
+        "auto_resume": auto_resume,
         "message": f"Аккаунт hh.ru переключен: {accounts[normalized].get('display_name') or normalized}.",
     }
 
