@@ -11,6 +11,7 @@
 
 | Дата | Изменение |
 |------|-----------|
+| 2026-04-02 | Push на GitHub: коммит `fcd8e64` — дашборд (CSS/JS), `server.py`/`snapshot.py`, `commands.py`, `hh_resume_catalog.py`, добавлен `docs/agent-project-memory.md`. |
 | 2026-04-01 | `.resume-card-actions`: вместо flex со `space-between` — CSS grid `repeat(2, minmax(0, 1fr))` + `min-width: 0` на кнопках, чтобы «Открыть»/«Выбрать» не вылезали из карточки в узкой колонке. |
 | 2026-04-01 | Intake: больше отступов (`.intake-stage`, `.intake-dialog-shell`, чат `.chat-composer`/`.chat-log`); карточки аккаунтов `.account-card` с `gap`. |
 | 2026-04-01 | Снимок: `intake.resume_sync_extracted` из `last_resume_sync_extracted` (компактно). `hhLoginReady` в `app.js`: также true при успешном `profile_sync` или при выбранном резюме + списке hh. `intakeResumeFacts` / `intakeResumeIntel`: фолбэки из extracted и anamnesis. Сервер: `run_resume` после `select-resume` только если sync `updated`/`no_changes`; то же после `select-account` при успешном sync. |
