@@ -16,6 +16,8 @@ class FilterPlanningOutput(BaseModel):
     salary_min: int | None = None
     residual_rules: list[str] = Field(default_factory=list)
     rationale: str = ""
+    # Extra keyword rounds after the primary broad SERP (short hh.ru text= queries).
+    follow_up_search_texts: list[str] = Field(default_factory=list)
 
 
 RunnerFn = Callable[[Any, str, Any], Any]
@@ -70,7 +72,9 @@ class OpenAIHHFilterAgent:
             instructions=(
                 "You convert the user's hiring preferences into hh.ru search intent. "
                 "Prefer deterministic, reusable filters. Only propose area_code values when you are confident "
-                "they map to hh.ru regions, and keep unsupported nuance in residual_rules."
+                "they map to hh.ru regions, and keep unsupported nuance in residual_rules. "
+                "Fill follow_up_search_texts with 2-4 short extra keyword combos for additional SERP rounds "
+                "(different skills/roles/domains). Use [] if one query is enough."
             ),
             output_type=FilterPlanningOutput,
         )
@@ -82,7 +86,8 @@ class OpenAIHHFilterAgent:
         }
         return (
             "Plan hh.ru filters from this user profile.\n"
-            "Return search_text, area_code, remote_only, salary_min, residual_rules, and rationale.\n"
+            "Return search_text, area_code, remote_only, salary_min, residual_rules, rationale, "
+            "and follow_up_search_texts (extra short queries for follow-up search rounds).\n"
             f"{json.dumps(payload, ensure_ascii=False, indent=2)}"
         )
 

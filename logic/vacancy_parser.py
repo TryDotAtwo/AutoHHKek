@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import json
 import os
 import random
@@ -434,8 +434,15 @@ async def search_vacancies(
     resume_id: str,
     initial_max_pages: int = 100,
     query_params: Dict[str, object] | None = None,
+    *,
+    persist_serp_cache: bool = True,
+    max_pages_cap: int | None = None,
 ) -> Tuple[List[Dict[str, str]], int, Dict[str, object]]:
-    """Поиск вакансий по резюме с динамическим определением max_pages из пагинации и кэшированием."""
+    """Поиск вакансий по резюме с динамическим определением max_pages из пагинации и кэшированием.
+
+    persist_serp_cache: если False — не читать/не писать глобальный vacancies_cache.json (доп. раунды поиска).
+    max_pages_cap: верхняя граница числа страниц выдачи (включая уже открытую первую).
+    """
     print("Поиск вакансий по резюме...")
     base_url = build_resume_search_url(resume_id, query_params)
     
@@ -459,8 +466,12 @@ async def search_vacancies(
         return [], total_count, {"search_url": base_url, "pages_parsed": 0, "search_session_id": search_session_id}
     await expand_search_results(page)
     first_page_vacancies = await extract_page_vacancies(page)
-    
-    if len(first_page_vacancies) != 100:
+
+    if not persist_serp_cache:
+        use_cache = False
+        all_vacancies = first_page_vacancies
+        start_page_num = 1
+    elif len(first_page_vacancies) != 100:
         print(f"На первой странице найдено {len(first_page_vacancies)} вакансий, не 100 — обновляем кэш заново.")
         use_cache = False
         all_vacancies = first_page_vacancies
@@ -490,15 +501,20 @@ async def search_vacancies(
     
     pages_parsed = 1 if first_page_vacancies else 0
 
+    def _clamp_max_pages(raw: int) -> int:
+        if max_pages_cap is None:
+            return raw
+        return min(raw, max_pages_cap)
+
     if not use_cache:
         # Если не используем кэш, парсим все заново
         current_page_num = start_page_num
-        max_pages = initial_max_pages
+        max_pages = _clamp_max_pages(initial_max_pages)
         while current_page_num < max_pages:
             # Динамическое обновление max_pages из пагинации
             dynamic_max = await get_max_pages_from_pagination(page, total_count)
             if dynamic_max > 0:
-                max_pages = max(max_pages, dynamic_max)
+                max_pages = _clamp_max_pages(max(max_pages, dynamic_max))
                 print(f"Обновлён max_pages из пагинации: {max_pages}")
             
             page_url = build_resume_search_url(resume_id, query_params, page=current_page_num)
@@ -530,17 +546,18 @@ async def search_vacancies(
             
             current_page_num += 1
             await asyncio.sleep(random.uniform(2, 4))  # Случайная пауза 2-4 сек
-        
-        save_cache(all_vacancies)
+
+        if persist_serp_cache:
+            save_cache(all_vacancies)
     else:
         # Если используем кэш, продолжаем парсинг только новых страниц после совпадения
         current_page_num = start_page_num
-        max_pages = initial_max_pages
+        max_pages = _clamp_max_pages(initial_max_pages)
         while current_page_num < max_pages:
             # Динамическое обновление max_pages из пагинации
             dynamic_max = await get_max_pages_from_pagination(page, total_count)
             if dynamic_max > 0:
-                max_pages = max(max_pages, dynamic_max)
+                max_pages = _clamp_max_pages(max(max_pages, dynamic_max))
                 print(f"Обновлён max_pages из пагинации: {max_pages}")
             
             page_url = build_resume_search_url(resume_id, query_params, page=current_page_num)
@@ -574,10 +591,11 @@ async def search_vacancies(
             await asyncio.sleep(random.uniform(2, 4))  # Случайная пауза 2-4 сек
         
         # Обновляем кэш новыми вакансиями
-        cache = load_cache()  # Перезагружаем, чтобы добавить в конец
-        cache.extend(all_vacancies[len(first_page_vacancies):])  # Добавляем только новые (после первой страницы)
-        save_cache(cache)
-        all_vacancies = cache[matching_index:]  # Возвращаем с позиции совпадения
+        if persist_serp_cache:
+            cache = load_cache()  # Перезагружаем, чтобы добавить в конец
+            cache.extend(all_vacancies[len(first_page_vacancies):])  # Добавляем только новые (после первой страницы)
+            save_cache(cache)
+            all_vacancies = cache[matching_index:]  # Возвращаем с позиции совпадения
     
     print(f"Всего собрано {len(all_vacancies)} вакансий для обработки (из {total_count} на hh.ru).")
     if len(all_vacancies) == 0:

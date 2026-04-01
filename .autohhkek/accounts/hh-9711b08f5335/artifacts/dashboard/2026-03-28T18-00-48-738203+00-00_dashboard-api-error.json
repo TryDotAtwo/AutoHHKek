@@ -1,5 +1,0 @@
-{
-  "path": "/api/actions/resume",
-  "error": "intake is required before this action.",
-  "body": {}
-}

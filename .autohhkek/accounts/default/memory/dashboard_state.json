@@ -1,8 +1,0 @@
-{
-  "last_hh_login_attempt_at": "2026-03-28T13:21:47.933023+00:00",
-  "last_hh_login_status": "failed",
-  "last_hh_login_message": "Page.goto: Timeout 60000ms exceeded.\nCall log:\n  - navigating to \"https://hh.ru/account/login?backurl=%2Fapplicant%2Fresumes\", waiting until \"domcontentloaded\"\n",
-  "last_resume_catalog_at": "2026-03-28T13:28:52.394760+00:00",
-  "last_resume_catalog_status": "completed",
-  "last_resume_catalog_count": 1
-}

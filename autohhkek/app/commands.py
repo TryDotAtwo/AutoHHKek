@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import random
 import re
@@ -1272,13 +1272,18 @@ def run_plan_filters(store: WorkspaceStore) -> dict[str, Any]:
     }
 
 
-def run_refresh_vacancies(store: WorkspaceStore, *, limit: int = 0) -> dict[str, Any]:
+def run_refresh_vacancies(
+    store: WorkspaceStore,
+    *,
+    limit: int = 0,
+    log_line: Any = None,
+) -> dict[str, Any]:
     _require_intake(store)
     _require_rules(store)
     hh_context = ensure_hh_context(store, auto_login=True)
     if hh_context["status"] != "ready":
         return {"action": "refresh_vacancies", **hh_context, "status": "blocked"}
-    result = HHVacancyRefresher(store).refresh(limit=limit)
+    result = HHVacancyRefresher(store).refresh(limit=limit, log_line=log_line)
     _mark_analysis_stale(store, "Источник вакансий обновлён. Запустите анализ заново, чтобы пересчитать оценки.")
     return {
         "action": "refresh_vacancies",
@@ -1520,14 +1525,30 @@ def update_vacancy_feedback(store: WorkspaceStore, *, vacancy_id: str, decision:
     )
     store.record_event("vacancy-feedback", "Пользователь изменил статус вакансии.", details={"vacancy_id": vacancy_key, "decision": decision_key})
     cover_letter_generated = False
+    apply_plan_error = ""
     if decision_key == "fit":
-        cover_letter_generated = bool(_ensure_cover_letter_draft(store, vacancy_id=vacancy_key, force=True))
+        draft_text = _ensure_cover_letter_draft(store, vacancy_id=vacancy_key, force=True)
+        cover_letter_generated = bool(str(draft_text or "").strip())
+        try:
+            run_plan_apply(store, vacancy_id=vacancy_key)
+        except Exception as exc:  # noqa: BLE001
+            apply_plan_error = str(exc)
+    message = f"Статус вакансии обновлён: {decision_key}."
+    if decision_key == "fit":
+        if cover_letter_generated:
+            message += " Сопроводительное письмо сгенерировано."
+        else:
+            message += " Черновик письма пуст — проверьте LLM/правила или нажмите «Собрать план отклика»."
+        if apply_plan_error:
+            message += f" План отклика не собран: {apply_plan_error}"
+        else:
+            message += " План отклика обновлён."
     return {
         "action": "vacancy_feedback",
         "vacancy_id": vacancy_key,
         "decision": decision_key,
         "cover_letter_generated": cover_letter_generated,
-        "message": f"Статус вакансии обновлен: {decision_key}." + (" Сопроводительное подготовлено автоматически." if cover_letter_generated else ""),
+        "message": message,
     }
 
 

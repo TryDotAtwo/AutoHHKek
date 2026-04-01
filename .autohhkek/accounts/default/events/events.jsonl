@@ -1,5 +1,0 @@
-{"timestamp": "2026-03-28T13:08:39.717783+00:00", "kind": "repair", "message": "Prepared repair task for chat_command_router.", "details": {"status": "ready"}, "run_id": ""}
-{"timestamp": "2026-03-28T13:08:57.446656+00:00", "kind": "repair", "message": "Prepared repair task for chat_command_router.", "details": {"status": "ready"}, "run_id": ""}
-{"timestamp": "2026-03-28T13:21:39.789132+00:00", "kind": "repair", "message": "Prepared repair task for chat_command_router.", "details": {"status": "ready"}, "run_id": ""}
-{"timestamp": "2026-03-28T13:21:42.081956+00:00", "kind": "repair", "message": "Prepared repair task for chat_command_router.", "details": {"status": "ready"}, "run_id": ""}
-{"timestamp": "2026-03-28T13:28:52.396774+00:00", "kind": "hh-resumes", "message": "  :  1.", "details": {"selected_resume_id": "07687234ff0dd3ea5f0039ed1f47594655564f", "status": "completed", "page_url": "https://hh.ru/applicant/resumes", "page_title": "Мои резюме", "debug_artifact": ""}, "run_id": ""}

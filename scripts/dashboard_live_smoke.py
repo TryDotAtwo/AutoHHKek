@@ -123,7 +123,6 @@ async def main() -> int:
             ("agent", "agent"),
             ("vacancies", "vacancies"),
             ("vacancy", "vacancy"),
-            ("activity", "activity"),
         ]
         for index, (tab_id, label) in enumerate(tab_specs, start=1):
             button = page.locator(f'.tab-button[data-tab="{tab_id}"]')
@@ -158,8 +157,6 @@ async def main() -> int:
                 await _click_if_visible(page, "#save-cover-letter", "save-cover-letter", action_results)
                 await _click_if_visible(page, "#build-apply-plan", "build-apply-plan", action_results)
                 await _click_if_visible(page, "#apply-submit", "apply-submit", action_results)
-            elif tab_id == "activity":
-                await _scroll_container(workspace)
 
         if await chat_log.count():
             scroll_info = await _scroll_container(chat_log)

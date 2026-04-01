@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import re
@@ -636,6 +636,15 @@ def _handler_factory(project_root: Path):
         "started_at": "",
         "finished_at": "",
     }
+    refresh_status: dict[str, object] = {
+        "running": False,
+        "status": "idle",
+        "message": "",
+        "log_lines": [],
+        "started_at": "",
+        "finished_at": "",
+        "result": {},
+    }
     runtime_patch_fields = (
         "llm_backend",
         "dashboard_mode",
@@ -658,6 +667,7 @@ def _handler_factory(project_root: Path):
                 "state_file_exists": current_store.hh_state_path.exists(),
             }
             payload["analysis_job"] = dict(analyze_status)
+            payload["refresh_job"] = dict(refresh_status)
             payload["pending_rule_edit"] = dict(pending_rule_edit)
             payload["bootstrap"] = dict(bootstrap_status)
             freshness = dict(payload.get("freshness") or {})
@@ -754,7 +764,7 @@ def _handler_factory(project_root: Path):
                     elif parsed.path == "/api/actions/plan-filters":
                         result = run_plan_filters(store)
                     elif parsed.path == "/api/actions/refresh-vacancies":
-                        result = run_refresh_vacancies(store, limit=int(body.get("limit", 0)))
+                        result = self._start_refresh_job(limit=int(body.get("limit", 0)))
                     elif parsed.path == "/api/actions/run-selected":
                         if store.load_runtime_settings().dashboard_mode == "analyze":
                             result = self._start_analyze_job(limit=int(body.get("limit", 120)))
@@ -1089,6 +1099,71 @@ def _handler_factory(project_root: Path):
 
             threading.Thread(target=_worker, daemon=True).start()
             return {"action": "analyze", "status": "started", "message": str(analyze_status["message"])}
+
+        def _start_refresh_job(self, *, limit: int) -> dict[str, object]:
+            if refresh_status.get("running"):
+                return {
+                    "action": "refresh_vacancies",
+                    "status": "running",
+                    "message": str(refresh_status.get("message") or "Парсинг вакансий уже выполняется."),
+                }
+            refresh_status.update(
+                {
+                    "running": True,
+                    "status": "running",
+                    "message": "Стартую парсинг вакансий с hh.ru…",
+                    "log_lines": [],
+                    "started_at": utc_now_iso(),
+                    "finished_at": "",
+                    "result": {},
+                }
+            )
+
+            def _refresh_worker() -> None:
+                worker_store = WorkspaceStore(project_root)
+                lines: list[str] = []
+
+                def _log(line: str) -> None:
+                    text = str(line or "").strip()
+                    if not text:
+                        return
+                    lines.append(text)
+                    with mutation_lock:
+                        refresh_status["log_lines"] = list(lines[-120:])
+                        refresh_status["message"] = text
+
+                try:
+                    result = run_refresh_vacancies(worker_store, limit=limit, log_line=_log)
+                    with mutation_lock:
+                        refresh_status.update(
+                            {
+                                "running": False,
+                                "status": str(result.get("status") or "completed"),
+                                "message": str(result.get("message") or "Парсинг завершён."),
+                                "finished_at": utc_now_iso(),
+                                "result": result,
+                                "log_lines": list(lines[-120:]),
+                            }
+                        )
+                except Exception as exc:  # noqa: BLE001
+                    with mutation_lock:
+                        refresh_status.update(
+                            {
+                                "running": False,
+                                "status": "failed",
+                                "message": str(exc),
+                                "finished_at": utc_now_iso(),
+                                "result": {"error": str(exc)},
+                                "log_lines": list(lines[-120:]),
+                            }
+                        )
+
+            threading.Thread(target=_refresh_worker, daemon=True).start()
+            return {
+                "action": "refresh_vacancies",
+                "status": "started",
+                "message": str(refresh_status["message"]),
+            }
 
     return DashboardHandler
 

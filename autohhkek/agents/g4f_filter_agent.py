@@ -42,7 +42,8 @@ class G4FHHFilterAgent:
                 "role": "system",
                 "content": (
                     "Convert user search intent into hh.ru filter JSON. "
-                    "Return search_text, area_code, remote_only, salary_min, residual_rules, rationale."
+                    "Return search_text, area_code, remote_only, salary_min, residual_rules, rationale, "
+                    "follow_up_search_texts (list of short extra keyword queries for follow-up rounds, or [])."
                 ),
             },
             {

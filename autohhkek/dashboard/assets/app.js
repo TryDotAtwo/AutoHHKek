@@ -1,8 +1,7 @@
-﻿const tabs = [
+const tabs = [
   { id: "agent", label: "Агент" },
   { id: "vacancies", label: "Вакансии" },
   { id: "vacancy", label: "Карточка" },
-  { id: "activity", label: "Ход работы" },
 ];
 
 const categoryMeta = {
@@ -30,11 +29,13 @@ const state = {
   selectedVacancyId: "",
   openDetails: {},
   isBusy: false,
+  /** @type {null | "chat_llm" | "server_action"} */
+  busySource: null,
   pendingActionMessage: "",
   pendingActionFrames: [],
   pendingActionStartedAt: 0,
   pendingTickerId: 0,
-  workspaceScrollTopByTab: { agent: 0, vacancies: 0, vacancy: 0, activity: 0 },
+  workspaceScrollTopByTab: { agent: 0, vacancies: 0, vacancy: 0 },
   chatScrollTop: 0,
   chatWasNearBottom: true,
   intakeOverlayScrollTop: 0,
@@ -42,6 +43,13 @@ const state = {
   autoRefreshPauseUntil: 0,
   refreshInFlight: false,
   announcements: new Set(),
+  bgJobLog: {
+    analysisSession: "",
+    lastAnalysisMsg: "",
+    refreshSession: "",
+    refreshLineIdx: 0,
+    sawRefreshRunning: false,
+  },
   chatHistory: [
     {
       role: "assistant",
@@ -155,6 +163,80 @@ function shouldSkipRefresh() {
   if (!active) return false;
   const tag = (active.tagName || "").toUpperCase();
   return tag === "TEXTAREA" || tag === "INPUT" || active.isContentEditable;
+}
+
+function injectVacancySectionBreaks(text) {
+  let t = String(text ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const needles = [
+    "Обязанности",
+    "Требования",
+    "Условия",
+    "Задачи",
+    "О компании",
+    "О вакансии",
+    "Чем предстоит",
+    "Чем предстоит заниматься",
+    "Мы предлагаем",
+    "Мы ожидаем",
+    "Ключевые требования",
+    "Что нужно от вас",
+    "Что предстоит делать",
+    "У нас для вас",
+    "График работы",
+    "Оформление",
+    "Выплаты",
+    "Опыт работы",
+    "Тип занятости",
+  ];
+  for (const w of needles) {
+    const re = new RegExp(`([\\.\\!\\?\\n])\\s*(${w})`, "gi");
+    t = t.replace(re, "$1\n\n$2");
+  }
+  t = t.replace(/\s+(Обязанности|Требования|Условия)\s*:/gi, "\n\n$1:");
+  return t.trim();
+}
+
+function formatVacancyDescriptionHtml(raw) {
+  const repaired = repairText(String(raw ?? ""));
+  if (!repaired.trim()) {
+    return `<p class="vacancy-desc-lead">${escapeHtml("Полный текст вакансии пока не сохранён. Нажмите «Ещё раз спарсить вакансии».")}</p>`;
+  }
+  const expanded = injectVacancySectionBreaks(repaired);
+  const chunks = expanded
+    .split(/\n{2,}/)
+    .map((c) => c.trim())
+    .filter(Boolean);
+  if (chunks.length <= 1 && !repaired.includes("\n")) {
+    const sentences = repaired.split(/(?<=[\\.\\!\\?])\s+(?=[А-ЯЁA-Z0-9«"„])/);
+    return `<div class="vacancy-desc-prose">${sentences
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => `<p>${escapeHtml(s)}</p>`)
+      .join("")}</div>`;
+  }
+  return chunks
+    .map((chunk) => {
+      const m = chunk.match(/^([^:\n]{1,120}):\s*([\s\S]*)$/);
+      if (m && m[1].trim().length <= 120 && !m[1].includes(".") && m[2].trim()) {
+        const title = m[1].trim();
+        const body = m[2].trim();
+        const paras = body
+          .split(/\n+/)
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .map((p) => `<p>${escapeHtml(p)}</p>`)
+          .join("");
+        return `<section class="vacancy-desc-section"><h4 class="vacancy-desc-heading">${escapeHtml(title)}</h4><div class="vacancy-desc-body">${paras}</div></section>`;
+      }
+      const paras = chunk
+        .split(/\n+/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .map((p) => `<p>${escapeHtml(p)}</p>`)
+        .join("");
+      return `<section class="vacancy-desc-section"><div class="vacancy-desc-body">${paras}</div></section>`;
+    })
+    .join("");
 }
 
 function escapeHtml(value) {
@@ -588,6 +670,7 @@ function startPendingTicker() {
       return;
     }
     renderChatLog();
+    if (state.snapshot) renderHero(state.snapshot);
   }, 1600);
 }
 
@@ -601,7 +684,7 @@ function setPendingStatus(message, frames = []) {
   state.pendingActionMessage = String(message || "").trim();
   state.pendingActionFrames = Array.isArray(frames) ? frames.filter(Boolean) : [];
   state.pendingActionStartedAt = state.pendingActionMessage ? Date.now() : 0;
-  if (state.pendingActionMessage) startPendingTicker();
+  if (state.pendingActionMessage && state.pendingActionFrames.length) startPendingTicker();
   else stopPendingTicker();
 }
 
@@ -659,9 +742,16 @@ function pendingFramesForAction(kind) {
       "Сохраняю результат и обновляю состояние вакансии.",
     ],
     generic: [
-      "Принял действие в работу.",
-      "Проверяю текущее состояние и ограничения.",
-      "Готовлю обновление интерфейса.",
+      "Принял задачу — кручу шестерёнки на сервере.",
+      "Сверяю состояние с тем, что вы уже сделали в интерфейсе.",
+      "Перечитываю snapshot, чтобы ничего не потерять по дороге.",
+      "На секунду задерживаю автообновление — не дёргаем UI зря.",
+      "Проверяю лимиты и блокировки, чтобы не сломать пайплайн.",
+      "Собираю ответ так, чтобы в чате не было сюрпризов.",
+      "Если сеть тянет — это не зависание, я жду бэкенд.",
+      "Почти готово: осталось применить изменения к состоянию.",
+      "Параллельно думаю, что показать вам следующим шагом.",
+      "Готовлю обновление карточек — сейчас всё подтянется.",
     ],
   };
   return variants[kind] || variants.generic;
@@ -903,24 +993,10 @@ function currentPipelineStep(snapshot) {
   return pipeline.find((step) => step.status === "active") || pipeline.find((step) => step.status === "blocked") || pipeline[pipeline.length - 1];
 }
 
-function currentActivityMessage(snapshot) {
-  if (state.pendingActionMessage) return state.pendingActionMessage;
-  if (snapshot.apply_batch_job?.running) {
-    return snapshot.apply_batch_job.message || "Идет пакетная отправка откликов.";
-  }
-  if (snapshot.analysis_job?.running) {
-    return snapshot.analysis_job.message || "Идет анализ и разбор вакансий.";
-  }
-  if (snapshot.hh_login?.running) {
-    return snapshot.hh_login.message || "Открыт вход в hh.ru, ожидаю авторизацию пользователя.";
-  }
-  return snapshot.profile_sync?.message || snapshot.analysis_state?.stale_reason || "";
-}
-
 function collectQuickActions(snapshot) {
   if (!isIntakeReady(snapshot)) return [];
   if (snapshot.analysis_job?.running) return [];
-  return [{ id: "analyze", label: "Запустить анализ" }];
+  return [];
 }
 
 
@@ -933,10 +1009,93 @@ function appendAssistantMessage(text, key = "") {
   state.chatHistory.push({ role: "assistant", text });
 }
 
+let progressPollTimer = 0;
+function scheduleProgressPoll() {
+  if (progressPollTimer) return;
+  progressPollTimer = window.setTimeout(() => {
+    progressPollTimer = 0;
+    void refresh();
+  }, 1300);
+}
+
+/** Last known server line for background work (snapshot polling), not client-side placeholder copy. */
+function liveDashboardActivityLine(snapshot) {
+  if (!snapshot) return "";
+  const rj = snapshot.refresh_job;
+  if (rj?.running) {
+    const lines = Array.isArray(rj.log_lines) ? rj.log_lines.map((x) => String(x || "").trim()).filter(Boolean) : [];
+    if (lines.length) return lines[lines.length - 1];
+    const rm = String(rj.message || "").trim();
+    if (rm) return rm;
+    return "Парсинг hh.ru…";
+  }
+  const aj = snapshot.analysis_job;
+  if (aj?.running) {
+    const am = String(aj.message || "").trim();
+    if (am) return am;
+    return "Анализ вакансий…";
+  }
+  const ab = snapshot.apply_batch_job;
+  if (ab?.running) {
+    const bm = String(ab.message || "").trim();
+    if (bm) return bm;
+    return "Пакетный отклик…";
+  }
+  const hl = snapshot.hh_login;
+  if (hl?.running) {
+    const hm = String(hl.message || "").trim();
+    if (hm) return hm;
+    return "Вход в hh.ru…";
+  }
+  const bs = snapshot.bootstrap;
+  if (bs?.running) {
+    const bsm = String(bs.message || "").trim();
+    if (bsm) return bsm;
+    return "Первичная настройка…";
+  }
+  return "";
+}
+
+function ingestBackgroundJobLogs(snapshot) {
+  if (!snapshot) return;
+  const aj = snapshot.analysis_job;
+  const analysisSession = String(aj?.started_at || "");
+  if (analysisSession && state.bgJobLog.analysisSession !== analysisSession) {
+    state.bgJobLog.analysisSession = analysisSession;
+    state.bgJobLog.lastAnalysisMsg = "";
+  }
+  if (aj?.running && aj.message && aj.message !== state.bgJobLog.lastAnalysisMsg) {
+    state.bgJobLog.lastAnalysisMsg = aj.message;
+    appendAssistantMessage(`[анализ вакансий] ${aj.message}`, `analysis-live:${analysisSession}:${String(aj.message)}`);
+  }
+
+  const rj = snapshot.refresh_job;
+  const refreshSession = String(rj?.started_at || "");
+  if (refreshSession && state.bgJobLog.refreshSession !== refreshSession) {
+    state.bgJobLog.refreshSession = refreshSession;
+    state.bgJobLog.refreshLineIdx = 0;
+    state.bgJobLog.sawRefreshRunning = false;
+  }
+  if (rj?.running) {
+    state.bgJobLog.sawRefreshRunning = true;
+  }
+  const lines = Array.isArray(rj?.log_lines) ? rj.log_lines : [];
+  for (let i = state.bgJobLog.refreshLineIdx; i < lines.length; i += 1) {
+    const line = String(lines[i] || "").trim();
+    if (!line) continue;
+    appendAssistantMessage(`[парсинг hh.ru] ${line}`, `refresh-log:${refreshSession}:${i}`);
+  }
+  state.bgJobLog.refreshLineIdx = lines.length;
+
+  if (state.bgJobLog.sawRefreshRunning && rj && !rj.running && refreshSession) {
+    state.bgJobLog.sawRefreshRunning = false;
+    const finalMsg = String(rj.message || "").trim() || "Парсинг вакансий завершён.";
+    appendAssistantMessage(`[парсинг hh.ru] ${finalMsg}`, `refresh-final:${refreshSession}`);
+  }
+}
+
 function announceSnapshotChanges(snapshot, previousSnapshot) {
   if (!previousSnapshot) {
-    const step = currentPipelineStep(snapshot);
-    appendAssistantMessage(step?.summary || "Готов к следующему шагу.", `initial:${step?.id || "step"}`);
     return;
   }
 
@@ -949,12 +1108,6 @@ function announceSnapshotChanges(snapshot, previousSnapshot) {
   if (previousSnapshot.selected_resume_id !== snapshot.selected_resume_id && snapshot.selected_resume_id) {
     appendAssistantMessage(`Зафиксировал резюме для поиска: ${snapshot.selected_resume_title || snapshot.selected_resume_id}.`, `resume:${snapshot.selected_resume_id}`);
   }
-  if (!previousSnapshot.analysis_job?.running && snapshot.analysis_job?.running) {
-    appendAssistantMessage(snapshot.analysis_job?.message || "Запустил анализ вакансий.", `analysis-running:${snapshot.analysis_job?.started_at || "run"}`);
-  }
-  if (previousSnapshot.analysis_job?.status !== snapshot.analysis_job?.status && snapshot.analysis_job?.status === "completed") {
-    appendAssistantMessage(snapshot.analysis_job?.message || "Анализ вакансий завершен.", `analysis-completed:${snapshot.analysis_job?.finished_at || "done"}`);
-  }
   if (!previousSnapshot.pending_rule_edit?.markdown && snapshot.pending_rule_edit?.markdown) {
     appendAssistantMessage("Подготовил черновик правки правил. Проверьте diff и подтвердите изменение в чате.", `rules-draft:${snapshot.pending_rule_edit.filename || "draft"}`);
   }
@@ -965,8 +1118,19 @@ function renderHero(snapshot) {
   const backend = snapshot.runtime_settings?.llm_backend || "openrouter";
   const step = currentPipelineStep(snapshot);
   const selectedResume = snapshot.selected_resume_title || snapshot.selected_resume_id || "не выбрано";
-  document.getElementById("hero-summary").textContent =
-    step?.summary || snapshot.next_recommended_action?.reason || "Дашборд показывает текущее состояние поиска и очередь вакансий.";
+  const pendingLine = currentPendingStatus();
+  const liveLine = liveDashboardActivityLine(snapshot);
+  const summaryEl = document.getElementById("hero-summary");
+  if (summaryEl) {
+    if (liveLine) {
+      summaryEl.textContent = liveLine;
+    } else if (state.isBusy && pendingLine) {
+      summaryEl.textContent = pendingLine;
+    } else {
+      summaryEl.textContent =
+        step?.summary || snapshot.next_recommended_action?.reason || "Дашборд показывает текущее состояние поиска и очередь вакансий.";
+    }
+  }
   document.getElementById("hero-next-action").textContent = step?.title || snapshot.next_recommended_action?.label || "Ожидаю действие";
   document.getElementById("hero-next-reason").textContent = `Режим: ${mode}. Модельный backend: ${backend}. Резюме: ${selectedResume}.`;
   document.getElementById("hero-runtime").textContent = `${backend} В· ${mode}`;
@@ -1035,7 +1199,7 @@ function renderResumeChooser(snapshot) {
             <article class="resume-card ${isActive ? "is-active" : ""}">
               <div>
                 <strong>${escapeHtml(resume.title || resume.resume_id)}</strong>
-                <p class="muted">${escapeHtml(resume.resume_id)}</p>
+                <p class="muted resume-id-line"><code class="resume-id" title="${escapeHtml(resume.resume_id)}">${escapeHtml(resume.resume_id)}</code></p>
               </div>
               <div class="resume-card-actions">
                 <a class="button button--ghost" href="${escapeHtml(resume.url || "#")}" target="_blank" rel="noreferrer">Открыть</a>
@@ -1314,8 +1478,6 @@ function renderAgentView(snapshot) {
   }
   const step = currentPipelineStep(snapshot);
   const actions = collectQuickActions(snapshot);
-  const selectedCard = currentCard(snapshot);
-  const activityMessage = currentActivityMessage(snapshot);
   root.innerHTML = `
     <div class="agent-grid">
       <section class="panel panel--wide">
@@ -1393,13 +1555,18 @@ function renderChatShell() {
           <h2>Чат</h2>
         </div>
       </div>
+      <div id="chat-agent-activity" class="chat-agent-activity" role="status" aria-live="polite" hidden></div>
       <div id="chat-lock-note"></div>
       <div id="chat-quick-actions" class="chip-row"></div>
       <div id="chat-log" class="chat-log"></div>
-      <form id="chat-form" class="chat-form">
-        <textarea id="chat-input" rows="4" placeholder="Напиши задачу, правку правил или уточнение по резюме"></textarea>
-        <button id="chat-submit" class="button button--primary" type="submit">Отправить</button>
-      </form>
+      <div class="chat-composer">
+        <div id="chat-status" class="chat-status" role="status" aria-live="polite" hidden></div>
+        <form id="chat-form" class="chat-form">
+          <label class="chat-input-label" for="chat-input">Ваше сообщение</label>
+          <textarea id="chat-input" class="chat-input" rows="4" placeholder="Напиши задачу, правку правил или уточнение по резюме" autocomplete="off"></textarea>
+          <button id="chat-submit" class="button button--primary" type="submit">Отправить</button>
+        </form>
+      </div>
     </section>
   `;
   document.getElementById("chat-form")?.addEventListener("submit", async (event) => {
@@ -1424,10 +1591,9 @@ function renderChatLog() {
   if (!log) return;
   const lockedReason = chatLockedReason(state.snapshot);
   const lockNote = document.getElementById("chat-lock-note");
-  const pendingStatus = currentPendingStatus();
   const visibleHistory = state.chatHistory.filter((item) => String(item?.text || "").trim());
   log.innerHTML = renderList(
-    pendingStatus ? [...visibleHistory, { role: "assistant", text: pendingStatus }] : visibleHistory,
+    visibleHistory,
     (item) => `<article class="chat-message chat-message--${escapeHtml(item.role)}"><span>${escapeHtml(item.role === "assistant" ? "агент" : "вы")}</span><p>${escapeHtml(item.text)}</p></article>`,
     "Чат пуст.",
   );
@@ -1448,9 +1614,50 @@ function renderChatLog() {
   }
   if (button) {
     button.disabled = Boolean(state.isBusy || lockedReason);
-    button.textContent = state.isBusy ? "Готовлю ответ..." : "Отправить";
+    if (state.isBusy && state.busySource === "chat_llm") {
+      button.textContent = "Модель (LLM) отвечает…";
+    } else if (state.isBusy) {
+      button.textContent = "Действие выполняется…";
+    } else {
+      button.textContent = "Отправить";
+    }
     if (lockedReason) button.title = lockedReason;
     else button.removeAttribute("title");
+  }
+  const liveActivityLine = liveDashboardActivityLine(state.snapshot);
+  const statusEl = document.getElementById("chat-status");
+  if (statusEl) {
+    if (state.isBusy && state.busySource === "chat_llm") {
+      statusEl.hidden = false;
+      statusEl.className = "chat-status chat-status--llm";
+      statusEl.textContent =
+        "Запрос обрабатывает языковая модель (LLM). Ответ агента появится в ленте выше.";
+    } else if (state.isBusy && state.busySource === "server_action" && !liveActivityLine) {
+      statusEl.hidden = false;
+      statusEl.className = "chat-status chat-status--action";
+      statusEl.textContent = "Сервер выполняет действие (не чат LLM). Дождитесь завершения.";
+    } else {
+      statusEl.hidden = true;
+      statusEl.textContent = "";
+      statusEl.className = "chat-status";
+    }
+  }
+  const activityEl = document.getElementById("chat-agent-activity");
+  if (activityEl) {
+    const pendingLine = currentPendingStatus();
+    if (liveActivityLine) {
+      activityEl.hidden = false;
+      activityEl.textContent = liveActivityLine;
+      activityEl.classList.add("chat-agent-activity--live");
+    } else if (state.isBusy && pendingLine) {
+      activityEl.hidden = false;
+      activityEl.textContent = pendingLine;
+      activityEl.classList.remove("chat-agent-activity--live");
+    } else {
+      activityEl.hidden = true;
+      activityEl.textContent = "";
+      activityEl.classList.remove("chat-agent-activity--live");
+    }
   }
 }
 
@@ -1666,9 +1873,11 @@ async function sendChatCommand(message) {
   const input = document.getElementById("chat-input");
   pauseAutoRefresh(12000);
   state.chatHistory.push({ role: "user", text: message });
+  state.busySource = "chat_llm";
   state.isBusy = true;
   setPendingStatus("Отправляю сообщение агенту.", pendingFramesForAction("chat"));
   renderChatLog();
+  if (state.snapshot) renderHero(state.snapshot);
   if (state.snapshot) renderAgentView(state.snapshot);
   try {
     const result = await postJson("/api/chat", { message, selected_vacancy_id: state.selectedVacancyId || "" });
@@ -1679,8 +1888,10 @@ async function sendChatCommand(message) {
     state.chatHistory.push({ role: "assistant", text: `Ошибка: ${error.message}` });
   } finally {
     state.isBusy = false;
+    state.busySource = null;
     setPendingStatus("");
     renderChatLog();
+    if (state.snapshot) renderHero(state.snapshot);
     if (state.snapshot) renderAgentView(state.snapshot);
   }
 }
@@ -1715,18 +1926,11 @@ async function handleServerAction(url, payload = {}, onSuccess) {
             : (url.includes("/apply-batch")
               ? `Запускаю пакетную отправку откликов по колонке ${categoryLabel(payload?.category || "")}.`
               : "Выполняю действие."))))));
-  const pendingKind = url.includes("/hh-login")
-    ? "hh-login"
-    : (url.includes("/refresh-vacancies")
-      ? "refresh-vacancies"
-    : (url.includes("/resume")
-      ? "resume"
-      : (url.includes("/analyze")
-        ? "analyze"
-        : (url.includes("/apply") ? "apply" : "generic"))));
+  state.busySource = "server_action";
   state.isBusy = true;
-  setPendingStatus(pendingMessage, pendingFramesForAction(pendingKind));
+  setPendingStatus(pendingMessage, []);
   renderChatLog();
+  if (state.snapshot) renderHero(state.snapshot);
   if (state.snapshot) renderAgentView(state.snapshot);
   try {
     const result = await postJson(url, payload);
@@ -1740,8 +1944,10 @@ async function handleServerAction(url, payload = {}, onSuccess) {
     renderChatLog();
   } finally {
     state.isBusy = false;
+    state.busySource = null;
     setPendingStatus("");
     renderChatLog();
+    if (state.snapshot) renderHero(state.snapshot);
     if (state.snapshot) renderAgentView(state.snapshot);
   }
 }
@@ -1841,11 +2047,11 @@ function renderVacancies(snapshot) {
           <h2>Вакансии, разбитые по трём колонкам</h2>
         </div>
         <div class="inline-actions">
-          <button class="button button--ghost button--compact" type="button" data-dashboard-action="refresh-vacancies" ${snapshot.analysis_job?.running ? "disabled" : ""}>Ещё раз спарсить вакансии</button>
-          <button class="button button--primary button--compact" type="button" data-dashboard-action="analyze" ${snapshot.analysis_job?.running ? "disabled" : ""}>Запустить анализ</button>
+          <button class="button button--ghost" type="button" data-dashboard-action="refresh-vacancies" ${snapshot.analysis_job?.running ? "disabled" : ""}>Ещё раз спарсить вакансии</button>
+          <button class="button button--primary" type="button" data-dashboard-action="analyze" ${snapshot.analysis_job?.running ? "disabled" : ""}>Запустить анализ</button>
         </div>
       </div>
-      <div class="stack compact board-summary">
+      <div class="stack board-summary">
         <div class="note"><strong>Статус анализа</strong><p>${escapeHtml(snapshot.analysis_job?.message || "Оценка очереди не запускалась.")}</p></div>
         <div class="note"><strong>Источник</strong><p>${escapeHtml(snapshot.setup_summary?.live_refresh_message || "Источник вакансий ещё не обновлялся.")}</p><p class="muted">${escapeHtml(`На hh.ru видно ${snapshot.setup_summary?.live_refresh_stats?.total_available || 0}, в локальной очереди ${snapshot.setup_summary?.live_refresh_stats?.count || 0}, новых после refresh ${snapshot.setup_summary?.live_refresh_stats?.new_count || 0}.`)}</p></div>
         <div class="note"><strong>Фильтры поиска</strong><p>${escapeHtml(snapshot.filter_plan?.search_text || "Широкий resume-first поиск без текстового сужения.")}</p><p class="muted">${escapeHtml((snapshot.filter_plan?.residual_rules || []).slice(0, 3).join(" • ") || "Жёстко режем только очевидный no-fit, остальное уходит в локальную оценку.")}</p></div>
@@ -1857,13 +2063,15 @@ function renderVacancies(snapshot) {
             ([key, meta]) => `
               <section class="lane ${meta.className}">
                 <div class="lane-head">
-                  <div>
-                    <h3>${escapeHtml(meta.label)}</h3>
-                    <p class="muted">${escapeHtml(meta.hint)}</p>
+                  <div class="lane-head-top">
+                    <div class="lane-head-text">
+                      <h3>${escapeHtml(meta.label)}</h3>
+                      <p class="muted">${escapeHtml(meta.hint)}</p>
+                    </div>
+                    <span class="lane-count lane-count--corner" aria-label="Карточек в колонке">${escapeHtml((snapshot.columns?.[key] || []).length)}</span>
                   </div>
                   <div class="lane-head-actions">
-                    <span class="lane-count">${escapeHtml((snapshot.columns?.[key] || []).length)}</span>
-                    <button class="button button--ghost button--compact" type="button" ${
+                    <button class="button button--ghost button--batch-lane" type="button" ${
                       applyBatchJob.running ? "disabled" : `data-apply-batch="${escapeHtml(key)}"`
                     }>${
                       applyBatchJob.running && applyBatchJob.category === key ? "Идёт отклик" : "Откликнуться по всем"
@@ -1880,7 +2088,7 @@ function renderVacancies(snapshot) {
                             <strong>${escapeHtml(card.title)}</strong>
                             <div class="vacancy-meta">${escapeHtml(card.company || "компания не указана")} • ${escapeHtml(card.location || "локация не указана")}</div>
                           </div>
-                          <span class="score">${escapeHtml(card.score)}</span>
+                          <span class="score score--corner" aria-label="Оценка">${escapeHtml(card.score)}</span>
                         </div>
                         <p>${escapeHtml(card.reason_summary || "Краткое пояснение по вакансии ещё не сохранено.")}</p>
                       </article>
@@ -2005,7 +2213,11 @@ function renderVacancyDetail(snapshot) {
           <div>
             <span class="panel-kicker">Детальный разбор</span>
             <h2>${escapeHtml(card.title)}</h2>
-            <p class="panel-lead panel-lead--compact">${escapeHtml((snapshot.selected_resume_title || snapshot.selected_resume_id || "Резюме не выбрано") + " · " + formatDate(snapshot.generated_at))}</p>
+            <div class="panel-lead panel-lead--compact vacancy-card-context" aria-label="Контекст карточки">
+              <span class="vacancy-card-context__resume">${escapeHtml(snapshot.selected_resume_title || snapshot.selected_resume_id || "Резюме не выбрано")}</span>
+              <span class="vacancy-card-context__sep">·</span>
+              <time class="vacancy-card-context__time" datetime="${escapeHtml(snapshot.generated_at || "")}">${escapeHtml(formatDate(snapshot.generated_at))}</time>
+            </div>
           </div>
           <div class="detail-top-actions">
             <div class="inline-actions">
@@ -2034,7 +2246,7 @@ function renderVacancyDetail(snapshot) {
         </div>
         <details class="details-box vacancy-description" ${descriptionOpen ? "open" : ""}>
           <summary>Описание вакансии</summary>
-          <div class="description-text">${escapeHtml(card.description || card.summary || "Полный текст вакансии пока не сохранён. Нажмите «Ещё раз спарсить вакансии».")}</div>
+          <div class="description-text vacancy-desc">${formatVacancyDescriptionHtml(card.description || card.summary || "")}</div>
         </details>
       </section>
       <aside class="panel panel--detail-side">
@@ -2128,43 +2340,6 @@ function renderVacancyDetail(snapshot) {
   });
 }
 
-function freshnessCards(snapshot) {
-  const rows = [
-    ["Вход в hh.ru", snapshot.freshness?.timestamps?.hh_login_at, snapshot.freshness?.stale?.hh_login_at],
-    ["Каталог резюме", snapshot.freshness?.timestamps?.resume_catalog_at, snapshot.freshness?.stale?.resume_catalog_at],
-    ["Анкета", snapshot.freshness?.timestamps?.intake_at, snapshot.freshness?.stale?.intake_at],
-    ["Правила", snapshot.freshness?.timestamps?.rules_at, snapshot.freshness?.stale?.rules_at],
-    ["Анализ", snapshot.freshness?.timestamps?.analysis_at, snapshot.freshness?.stale?.analysis_at],
-  ];
-  return rows
-    .map(([label, value, stale]) => `<div class="note"><strong>${escapeHtml(label)}</strong><p>${escapeHtml(value ? formatDate(value) : "нет данных")}</p><p class="muted">${escapeHtml(stale ? "данные устарели" : "данные актуальны")}</p></div>`)
-    .join("");
-}
-
-function renderActivity(snapshot) {
-  const root = document.getElementById("activity-view");
-  root.innerHTML = `
-    <div class="activity-grid">
-      <section class="panel">
-        <div class="panel-head"><div><span class="panel-kicker">Свежесть данных</span><h2>Когда что обновлялось</h2></div></div>
-        <div class="stack">${freshnessCards(snapshot)}</div>
-      </section>
-      <section class="panel">
-        <div class="panel-head"><div><span class="panel-kicker">События</span><h2>Последние действия</h2></div></div>
-        <div class="stack">
-          ${renderList(snapshot.recent_events || [], (event) => `<article class="history-card"><strong>${escapeHtml(event.kind || "событие")}</strong><p>${escapeHtml(event.message || "")}</p><p class="muted">${escapeHtml(formatDate(event.timestamp))}</p></article>`, "Событий пока нет.")}
-        </div>
-      </section>
-      <section class="panel panel--wide">
-        <div class="panel-head"><div><span class="panel-kicker">Запуски</span><h2>История прогонов</h2></div></div>
-        <div class="stack">
-          ${renderList(snapshot.recent_runs || [], (run) => `<article class="history-card"><strong>${escapeHtml(run.run_id || "run")}</strong><p>${escapeHtml(run.mode || "")} В· ${escapeHtml(run.status || "")}</p><p class="muted">${escapeHtml(formatDate(run.started_at))}</p></article>`, "Запусков пока нет.")}
-        </div>
-      </section>
-    </div>
-  `;
-}
-
 function renderSnapshot(snapshot) {
   if (!snapshot) return;
   rememberScrollState();
@@ -2173,11 +2348,13 @@ function renderSnapshot(snapshot) {
   document.body.classList.toggle("intake-blocking", !isIntakeReady(snapshot));
   document.querySelector(".dashboard-shell")?.classList.toggle("dashboard-shell--intake", !isIntakeReady(snapshot));
   ensureSelectedVacancy(snapshot);
+  if (state.activeTab === "activity") state.activeTab = "agent";
   if (!state.userSelectedTab) {
     if (snapshot.analysis_job?.running) state.activeTab = "agent";
     else if (!previousSnapshot) state.activeTab = preferredTab(snapshot);
   }
   announceSnapshotChanges(snapshot, previousSnapshot);
+  ingestBackgroundJobLogs(snapshot);
   renderHero(snapshot);
   renderStatusStrip(snapshot);
   renderTabbar();
@@ -2185,12 +2362,14 @@ function renderSnapshot(snapshot) {
   renderAgentView(snapshot);
   renderVacancies(snapshot);
   renderVacancyDetail(snapshot);
-  renderActivity(snapshot);
   renderBlockingIntakeOverlay(snapshot);
   renderLlmGateOverlay(snapshot);
   repairRenderedText(document.body);
   updateVisibleTab();
   restoreScrollState();
+  if (snapshot?.refresh_job?.running || snapshot?.analysis_job?.running) {
+    scheduleProgressPoll();
+  }
 }
 
 async function refresh() {

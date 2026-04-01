@@ -15,16 +15,23 @@ def test_filter_planner_builds_query_params_and_ui_actions():
 
     plan = HHFilterPlanner(preferences, anamnesis, selected_resume_id="resume-123").build()
 
-    assert "LLM Engineer" in plan["search_text"]
-    assert plan["query_params"]["salary_from"] == 300000
+    assert plan["search_text"] == ""
+    assert "text" not in plan["query_params"]
+    assert "salary_from" not in plan["query_params"]
     assert plan["query_params"]["remote_work"] == "1"
-    assert plan["query_params"]["area"] == "1"
+    assert "area" not in plan["query_params"]
     assert plan["resume_id"] == "resume-123"
     assert "resume=resume-123" in plan["search_url"]
     assert "work_format=REMOTE" in plan["search_url"]
-    assert any(step["action"] == "set_search_text" for step in plan["ui_actions"])
+    assert not any(step["action"] == "set_search_text" for step in plan["ui_actions"])
     assert any(step["action"] == "set_remote_filter" for step in plan["ui_actions"])
     assert "университет" in " ".join(plan["residual_rules"])
+    assert any("Salary preference" in rule for rule in plan["residual_rules"])
+    rounds = plan["search_rounds"]
+    assert isinstance(rounds, list)
+    assert rounds[0]["id"] == "primary_broad"
+    assert rounds[0]["persist_serp_cache"] is True
+    assert any(r.get("id", "").startswith("followup_kw_") for r in rounds[1:])
 
 
 def test_filter_planner_falls_back_to_skill_query_when_titles_absent():
@@ -35,6 +42,7 @@ def test_filter_planner_falls_back_to_skill_query_when_titles_absent():
 
     assert plan["search_text"] == "Python NLP"
     assert plan["query_params"]["text"] == "Python NLP"
+    assert len(plan["search_rounds"]) == 1
 
 
 def test_filter_planner_prefers_resume_first_search_when_resume_selected_and_no_explicit_fields():

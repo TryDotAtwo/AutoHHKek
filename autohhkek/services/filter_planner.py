@@ -109,6 +109,11 @@ class HHFilterPlanner:
             query_params["area"] = area_code
             ui_actions.append(self.registry.execute("set_area_filter", {"area_code": area_code}).to_dict())
 
+        search_rounds = self._build_search_rounds(query_params, resume_first_search, llm_plan)
+        planning_notes.append(
+            f"Search rounds: {len(search_rounds)} (broad primary, then keyword follow-ups merged and deduped)."
+        )
+
         return {
             "search_text": search_text,
             "query_params": query_params,
@@ -122,6 +127,7 @@ class HHFilterPlanner:
             "llm_planner_status": getattr(self.llm_planner, "last_status", "unknown"),
             "llm_planner_error": getattr(self.llm_planner, "last_error", ""),
             "llm_filter_intent": llm_plan.model_dump() if llm_plan is not None else None,
+            "search_rounds": search_rounds,
         }
 
     def _build_search_text(self) -> str:
@@ -135,11 +141,9 @@ class HHFilterPlanner:
         return " ".join(parts).strip()
 
     def _prefer_resume_only_search(self) -> bool:
-        if not self.selected_resume_id:
-            return False
-        if self.preferences.forbidden_keywords or self.preferences.excluded_keywords:
-            return False
-        return True
+        # If a resume is selected, hh already has strong semantic context.
+        # Keep the query broad and apply strict constraints in residual scoring.
+        return bool(self.selected_resume_id)
 
     def _target_titles_for_search(self) -> list[str]:
         source = [item for item in self.preferences.target_titles if item.strip()]
@@ -219,3 +223,62 @@ class HHFilterPlanner:
         if llm_backend == "openrouter":
             return OpenRouterHHFilterAgent()
         return OpenAIHHFilterAgent()
+
+    def _heuristic_follow_up_texts(self) -> list[str]:
+        skills = self._skill_terms_for_search()[:4]
+        titles = self._target_titles_for_search()[:2]
+        merged: list[str] = []
+        for item in skills + titles:
+            normalized = _normalize_phrase(item)
+            if len(normalized) < 2:
+                continue
+            if normalized not in merged:
+                merged.append(normalized)
+        combo = " ".join(skills[:2]) if len(skills) >= 2 else ""
+        if combo and combo not in merged:
+            merged.insert(0, combo)
+        return merged[:5]
+
+    def _build_search_rounds(
+        self,
+        base_query_params: dict[str, object],
+        resume_first_search: bool,
+        llm_plan,
+    ) -> list[dict[str, object]]:
+        primary = dict(base_query_params)
+        rounds: list[dict[str, object]] = [
+            {
+                "id": "primary_broad",
+                "query_params": primary,
+                "initial_max_pages": 100,
+                "persist_serp_cache": True,
+                "max_pages_cap": None,
+            }
+        ]
+        follow: list[str] = []
+        if llm_plan is not None:
+            follow = [str(t).strip() for t in (llm_plan.follow_up_search_texts or []) if str(t).strip()]
+        if not follow and resume_first_search:
+            follow = self._heuristic_follow_up_texts()
+
+        seen: set[str] = {str(primary.get("text") or "").strip().casefold()}
+        for i, raw in enumerate(follow[:6]):
+            text = _normalize_phrase(raw)
+            if len(text) < 2:
+                continue
+            key = text.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            qp = dict(base_query_params)
+            qp["text"] = text
+            rounds.append(
+                {
+                    "id": f"followup_kw_{i + 1}",
+                    "query_params": qp,
+                    "initial_max_pages": 6,
+                    "persist_serp_cache": False,
+                    "max_pages_cap": 6,
+                }
+            )
+        return rounds

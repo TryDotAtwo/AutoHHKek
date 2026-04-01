@@ -161,6 +161,9 @@ def test_search_vacancies_does_not_reload_first_page_with_page_zero():
         async def screenshot(self, path):
             return None
 
+        async def wait_for_timeout(self, ms: int):
+            return None
+
         async def inner_text(self, selector):
             assert selector == "body"
             return "Найдено 1 296 подходящих вакансий"
@@ -187,6 +190,13 @@ def test_search_vacancies_does_not_reload_first_page_with_page_zero():
         def locator(self, selector):
             if selector == "[data-qa='serp-item']":
                 return FakeCards()
+            if selector == "a[href*='/vacancy/']":
+
+                class VacancyAnchors:
+                    async def count(self):
+                        return 1
+
+                return VacancyAnchors()
             raise AssertionError(f"Unexpected locator selector: {selector}")
 
         async def query_selector(self, selector):
@@ -197,7 +207,15 @@ def test_search_vacancies_does_not_reload_first_page_with_page_zero():
             raise AssertionError(f"Unexpected query_selector selector: {selector}")
 
     page = FakePage()
-    vacancies, total_count, meta = asyncio.run(search_vacancies(page, "resume-123", query_params={"remote_work": "1"}))
+    vacancies, total_count, meta = asyncio.run(
+        search_vacancies(
+            page,
+            "resume-123",
+            query_params={"remote_work": "1"},
+            max_pages_cap=2,
+            persist_serp_cache=False,
+        )
+    )
 
     assert page.goto_calls
     assert "page=0" not in page.goto_calls[0]

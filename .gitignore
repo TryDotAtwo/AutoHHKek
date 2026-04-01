@@ -35,3 +35,17 @@ pip-wheel-metadata/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Runtime state and local memory (must stay local)
+.autohhkek/
+.agent_workspace/
+%TEMP%/
+generated_media/
+artifacts/
+screenshots/
+debug_*.txt
+debug_*.png
+vacancies_cache.json
+working_results.txt
+successful_combos.json
+Untitled
