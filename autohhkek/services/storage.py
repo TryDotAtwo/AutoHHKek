@@ -130,6 +130,7 @@ class WorkspaceStore:
         self.account_key = sanitize_account_key(account_key or self._read_active_account_key(project_root.resolve()) or "default")
         self.paths = WorkspacePaths(self.project_root, account_key=self.account_key)
         self.paths.ensure()
+        
         self._ensure_active_account()
 
     @staticmethod
@@ -469,3 +470,6 @@ class WorkspaceStore:
         else:
             target.write_text(str(payload), encoding="utf-8")
         return str(target)
+    
+    def load_resume_markdown(self) -> str:
+        return self.load_resume_draft_markdown()

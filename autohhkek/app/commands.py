@@ -6,6 +6,7 @@ import time
 import zipfile
 from pathlib import Path
 from typing import Any
+import asyncio
 
 from autohhkek.agents.application_agent import ApplicationAgent
 from autohhkek.agents.intake_agent import IntakeAgent
@@ -26,7 +27,7 @@ from autohhkek.services.profile_rules import compose_rules_markdown
 from autohhkek.services.rule_loader import apply_rule_bundles, load_rule_bundle_from_text
 from autohhkek.services.rules import build_selection_rules_markdown, build_user_rules_contract, evaluate_intake_readiness
 from autohhkek.services.storage import WorkspaceStore
-
+from autohhkek.agents.openrouter_cover_letter_agent import OpenRouterCoverLetterAgent
 
 def _mark_analysis_stale(store: WorkspaceStore, reason: str) -> None:
     analysis_state = store.load_analysis_state() or {}
@@ -1010,27 +1011,54 @@ def _require_mode_selection(store: WorkspaceStore) -> None:
     if not settings.mode_selected:
         raise RuntimeError("mode selection is required before running the selected workflow.")
 
-
 def _ensure_cover_letter_draft(store: WorkspaceStore, *, vacancy_id: str, force: bool = False) -> str:
     vacancy_key = str(vacancy_id or "").strip()
     if not vacancy_key:
         return ""
+
     existing = store.load_cover_letter_draft(vacancy_key)
-    legacy_markers = ("Кандидат имеет", "кандидат имеет", "ML/AI")
+    legacy_markers = (
+        "Кандидат имеет",
+        "кандидат имеет",
+        "ML/AI",
+        "Здравствуйте! Меня заинтересовала вакансия",
+        "в работе мне помогают навыки",
+        "Мне близки задачи этой роли",
+    )
     legacy_style = any(marker in existing for marker in legacy_markers)
+
     if existing.strip() and not force and not legacy_style:
         return existing
+
     vacancies = {item.vacancy_id: item for item in store.load_vacancies()}
     assessments = {item.vacancy_id: item for item in store.load_assessments()}
+
     vacancy = vacancies.get(vacancy_key)
     assessment = assessments.get(vacancy_key)
+
     if not vacancy or not assessment or assessment.category != FitCategory.FIT:
         return existing
-    generated = ResumeAgent(store).build_cover_letter(vacancy, assessment).strip()
+
+    preferences = store.load_preferences()
+    anamnesis = store.load_anamnesis()
+    if not preferences or not anamnesis:
+        return existing
+
+    generated = OpenRouterCoverLetterAgent().generate(
+        vacancy=vacancy,
+        assessment=assessment,
+        preferences=preferences,
+        anamnesis=anamnesis,
+        resume_markdown=store.load_resume_markdown(),
+        selection_rules=store.load_selection_rules(),
+        imported_rules=store.load_imported_rules(),
+        dashboard_state=store.load_dashboard_state(),
+    ).strip()
+
     if generated:
         store.save_cover_letter_draft(vacancy_key, generated)
-    return generated
 
+    return generated or existing
 
 def _ensure_cover_letters_for_fit_vacancies(store: WorkspaceStore) -> dict[str, int]:
     generated = 0
@@ -1184,7 +1212,7 @@ def _status_counts_as_apply(status: str) -> bool:
     return status in {"completed", "completed_without_cover_letter", "completed_without_confirmation"}
 
 
-def run_analyze(store: WorkspaceStore, *, limit: int = 120, interactive: bool = False, progress_callback=None) -> dict[str, Any]:
+def run_analyze(store: WorkspaceStore, *, limit: int = 0, interactive: bool = False, progress_callback=None) -> dict[str, Any]:
     _require_intake(store)
     _require_rules(store)
     hh_context = ensure_hh_context(store, auto_login=True)
@@ -1196,7 +1224,15 @@ def run_analyze(store: WorkspaceStore, *, limit: int = 120, interactive: bool = 
             store.save_analysis_state(analysis_state)
         store.record_event("hh-preflight", str(hh_context["message"]), details=hh_context)
         return {"action": "analyze", **hh_context, "status": "blocked"}
-    run, assessments = VacancyAnalysisAgent(store).analyze(limit=limit, progress_callback=progress_callback)
+
+
+    run, assessments = asyncio.run(
+        VacancyAnalysisAgent(store).analyze_async(
+            limit=limit,
+            progress_callback=progress_callback,
+            max_concurrency=60,
+        )
+    )
     cover_letter_stats = _ensure_cover_letters_for_fit_vacancies(store)
     store.touch_dashboard_timestamp("last_analysis_at")
     analysis_state = store.load_analysis_state()
@@ -1395,9 +1431,9 @@ def run_plan_apply(store: WorkspaceStore, *, vacancy_id: str | None = None) -> d
     _require_intake(store)
     _require_rules(store)
     if not store.load_assessments():
-        VacancyAnalysisAgent(store).analyze(limit=120)
+        run_analyze(store, limit=0, interactive=False)
     if vacancy_id:
-        _ensure_cover_letter_draft(store, vacancy_id=str(vacancy_id), force=False)
+        _ensure_cover_letter_draft(store, vacancy_id=str(vacancy_id), force=True)
     payload = ApplicationAgent(store).build_plan(vacancy_id=vacancy_id)
     store.touch_dashboard_timestamp("last_apply_plan_at")
     vacancy_title = str(((payload.get("vacancy") or {}).get("title") or "выбранной вакансии"))
@@ -1687,8 +1723,8 @@ def run_selected_mode(store: WorkspaceStore) -> dict[str, Any]:
             },
         }
     if mode == "full_pipeline":
-        analyze_result = run_analyze(store, limit=120, interactive=False)
+        analyze_result = run_analyze(store, limit=0, interactive=False)
         apply_result = run_plan_apply(store)
         return {"action": "full_pipeline", "analyze": analyze_result, "apply_plan": apply_result}
-    return run_analyze(store, limit=120, interactive=False)
+    return run_analyze(store, limit=0, interactive=False)
 

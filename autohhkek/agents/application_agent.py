@@ -3,15 +3,16 @@ from __future__ import annotations
 from autohhkek.domain.enums import FitCategory
 from autohhkek.integrations.hh.runtime import HHAutomationRuntime
 from autohhkek.services.storage import WorkspaceStore
+from .openrouter_cover_letter_agent import OpenRouterCoverLetterAgent
 
-from .resume_agent import ResumeAgent
 
 
 class ApplicationAgent:
     def __init__(self, store: WorkspaceStore) -> None:
         self.store = store
-        self.resume_agent = ResumeAgent(store)
         self.runtime = HHAutomationRuntime(project_root=store.project_root)
+        self.cover_letter_agent = OpenRouterCoverLetterAgent()
+
 
     def build_plan(self, vacancy_id: str | None = None) -> dict:
         vacancies = {item.vacancy_id: item for item in self.store.load_vacancies()}
@@ -36,9 +37,18 @@ class ApplicationAgent:
         preferences = self.store.load_preferences()
         cover_letter = ""
         if preferences and preferences.cover_letter_mode != "never":
-            cover_letter = self.resume_agent.build_cover_letter(target, assessment)
+            cover_letter = self.cover_letter_agent.generate(
+                vacancy=target,
+                assessment=assessment,
+                preferences=self.store.load_preferences(),
+                anamnesis=self.store.load_anamnesis(),
+                resume_markdown=self.store.load_resume_markdown(),
+                selection_rules=self.store.load_selection_rules(),
+                imported_rules=self.store.load_imported_rules(),
+                dashboard_state=self.store.load_dashboard_state(),
+            )
         stored_override = self.store.load_cover_letter_draft(target.vacancy_id)
-        if stored_override.strip():
+        if stored_override.strip() and not cover_letter.strip():
             cover_letter = stored_override
 
         payload = {

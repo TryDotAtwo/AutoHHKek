@@ -585,7 +585,7 @@ def _handle_chat_command(
         return _chat_response(f"План отклика собран: {vacancy}.", action="apply-plan", details=result)
 
     if _contains_any(normalized, ("запусти анализ", "поиск вакансий")) or _equals_any(normalized, {"анализ", "го", "go", "поехали", "запускай"}):
-        result = start_analyze_job(limit=120)
+        result = start_analyze_job(limit=0)
         return _chat_response(str(result.get("message") or "Запустил анализ."), action="analyze", details=result)
 
     llm_reply = _openrouter_chat_reply(store, text=text, selected_vacancy_id=selected_vacancy_id)
@@ -767,11 +767,11 @@ def _handler_factory(project_root: Path):
                         result = self._start_refresh_job(limit=int(body.get("limit", 0)))
                     elif parsed.path == "/api/actions/run-selected":
                         if store.load_runtime_settings().dashboard_mode == "analyze":
-                            result = self._start_analyze_job(limit=int(body.get("limit", 120)))
+                            result = self._start_analyze_job(limit=int(body.get("limit", 0)))
                         else:
                             result = run_selected_mode(store)
                     elif parsed.path == "/api/actions/analyze":
-                        result = self._start_analyze_job(limit=int(body.get("limit", 120)))
+                        result = self._start_analyze_job(limit=int(body.get("limit", 0)))
                     elif parsed.path == "/api/actions/apply-plan":
                         result = run_plan_apply(store, vacancy_id=body.get("vacancy_id") or None)
                     elif parsed.path == "/api/actions/save-cover-letter":
@@ -1026,20 +1026,31 @@ def _handler_factory(project_root: Path):
                     with mutation_lock:
                         analyze_status["phase"] = "analysis"
                         analyze_status["message"] = "Обновляю вакансии с hh.ru и пересчитываю их относительно текущего профиля."
-                    def _progress(*, done: int, total: int, title: str, strategy: str) -> None:
+                    def _progress(
+                        *,
+                        stage: str = "",
+                        message: str = "",
+                        done: int = 0,
+                        total: int = 0,
+                        title: str = "",
+                        strategy: str = "",
+                        details: dict | None = None,
+                    ) -> None:
                         worker_store.update_dashboard_state(
                             {
+                                "analysis_progress_stage": stage,
+                                "analysis_progress_message": message,
                                 "analysis_progress_done": done,
                                 "analysis_progress_total": total,
                                 "analysis_progress_title": title,
                                 "analysis_progress_strategy": strategy,
+                                "analysis_progress_details": details or {},
                                 "analysis_progress_updated_at": utc_now_iso(),
                             }
                         )
                         with mutation_lock:
-                            analyze_status["message"] = (
-                                f"Оцениваю вакансии: {done}/{total}."
-                                + (f" Последняя: {title}." if title else "")
+                            analyze_status["message"] = message or (
+                                f"Оцениваю вакансии: {done}/{total}." + (f" Последняя: {title}." if title else "")
                             )
 
                     result = run_analyze(worker_store, limit=limit, interactive=False, progress_callback=_progress)
@@ -1171,7 +1182,18 @@ def _handler_factory(project_root: Path):
 
 
 def start_dashboard_server(project_root: Path, host: str = "127.0.0.1", port: int = 8766) -> DashboardHandle:
-    handler = _handler_factory(project_root.resolve())
+    project_root = project_root.resolve()
+    store = WorkspaceStore(project_root)
+    store.update_dashboard_state({
+        "apply_batch_running": False,
+        "apply_batch_message": "",
+        "analysis_progress_done": 0,
+        "analysis_progress_total": 0,
+        "analysis_progress_title": "",
+        "analysis_progress_strategy": "",
+        "analysis_progress_updated_at": utc_now_iso(),
+    })
+    handler = _handler_factory(project_root)
     server = ThreadingHTTPServer((host, port), handler)
     actual_host, actual_port = server.server_address[:2]
     browser_host = "127.0.0.1" if actual_host == "0.0.0.0" else str(actual_host)

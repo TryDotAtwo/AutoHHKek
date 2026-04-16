@@ -3,6 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 import json
 from typing import Any, Callable
+import asyncio
 
 from autohhkek.agents.openai_review_agent import (
     VacancyReviewOutput,
@@ -158,3 +159,65 @@ class OpenRouterVacancyReviewer:
             review_strategy="openrouter_agent",
             review_notes=output.review_notes or f"Проверено моделью {self.last_model} через OpenRouter.",
         )
+
+
+
+    async def review_async(
+        self,
+        vacancy: Vacancy,
+        preferences: UserPreferences,
+        anamnesis: Anamnesis,
+    ) -> VacancyAssessment | None:
+        if not self.config.is_available():
+            self.last_status = "unavailable"
+            self.last_error = ""
+            return None
+
+        prompt = self._build_prompt(vacancy, preferences, anamnesis)
+        errors: list[str] = []
+
+        for model in self._candidate_models():
+            self.last_model = model
+            try:
+                result = await self._run_async(
+                    self._build_agent(model),
+                    prompt,
+                    run_config=self.config.build_run_config(
+                        workflow_name="AutoHHKek OpenRouter vacancy review",
+                        model=model,
+                    ),
+                )
+                if result is None:
+                    errors.append(f"{model}: empty result")
+                    continue
+                output = getattr(result, "final_output", None)
+                if output is None:
+                    errors.append(f"{model}: missing final_output")
+                    continue
+                if not isinstance(output, VacancyReviewOutput):
+                    try:
+                        output = VacancyReviewOutput.model_validate(output)
+                    except Exception as exc:  # noqa: BLE001
+                        errors.append(f"{model}: {exc}")
+                        continue
+                self.last_status = "ok"
+                self.last_error = ""
+                return self._to_assessment(vacancy, output)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"{model}: {exc}")
+                continue
+
+        self.last_status = "error"
+        self.last_error = " | ".join(errors)
+        return None
+
+    async def _run_async(self, agent, prompt: str, run_config=None):
+        from agents import Runner
+
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(Runner.run_sync, agent, prompt, run_config=run_config),
+                timeout=self.review_timeout_sec,
+            )
+        except asyncio.TimeoutError as exc:
+            raise TimeoutError(f"OpenRouter review timed out after {self.review_timeout_sec:.0f}s") from exc

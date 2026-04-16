@@ -1,4 +1,7 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
+
+import asyncio
 
 from autohhkek.domain.models import Anamnesis, RuntimeSettings, Vacancy, VacancyAssessment
 from autohhkek.services.analysis import VacancyRuleEngine
@@ -27,29 +30,56 @@ class VacancyReviewAgent:
         self.openrouter_reviewer = openrouter_reviewer or OpenRouterVacancyReviewer()
         self.g4f_reviewer = g4f_reviewer or G4FVacancyReviewer()
 
-    def review(self, vacancy: Vacancy) -> VacancyAssessment:
+    def _select_reviewer(self):
         backend = self.runtime_settings.llm_backend
         if backend == "g4f":
-            reviewer = self.g4f_reviewer
-        elif backend == "openrouter":
-            reviewer = self.openrouter_reviewer
-        else:
-            reviewer = self.openai_reviewer
-        assessment = reviewer.review(vacancy, self.preferences, self.anamnesis)
-        if assessment is not None:
-            return assessment
+            return self.g4f_reviewer
+        if backend == "openrouter":
+            return self.openrouter_reviewer
+        return self.openai_reviewer
 
+    def _build_rule_fallback(self, reviewer, vacancy: Vacancy) -> VacancyAssessment:
         assessment = self.rule_engine.assess(vacancy)
         assessment.review_strategy = "rule_based_fallback"
+
+        backend_name = self.runtime_settings.llm_backend
         last_status = getattr(reviewer, "last_status", "unknown")
         last_error = getattr(reviewer, "last_error", "")
+
         if last_status == "unavailable":
-            assessment.review_notes = f"LLM-проверка через {self.runtime_settings.llm_backend} недоступна. Использованы детерминированные правила."
+            assessment.review_notes = (
+                f"LLM-проверка через {backend_name} недоступна. "
+                "Использованы детерминированные правила."
+            )
         elif last_status == "error":
             assessment.review_notes = (
-                f"LLM-проверка через {self.runtime_settings.llm_backend} завершилась ошибкой, поэтому использованы детерминированные правила. "
-                f"Последняя ошибка: {last_error}"
+                f"LLM-проверка через {backend_name} завершилась ошибкой, поэтому использованы "
+                f"детерминированные правила. Последняя ошибка: {last_error}"
+            )
+        elif last_status == "parse_error":
+            assessment.review_notes = (
+                f"LLM-проверка через {backend_name} вернула невалидный ответ, поэтому использованы "
+                "детерминированные правила."
+            )
+        elif last_status == "empty":
+            assessment.review_notes = (
+                f"LLM-проверка через {backend_name} не вернула содержательный результат, поэтому "
+                "использованы детерминированные правила."
             )
         else:
             assessment.review_notes = "Использованы детерминированные правила как стабильный fallback."
+
         return assessment
+
+    def review(self, vacancy: Vacancy) -> VacancyAssessment | None:
+        reviewer = self._select_reviewer()
+        return reviewer.review(vacancy, self.preferences, self.anamnesis)
+
+    async def review_async(self, vacancy: Vacancy) -> VacancyAssessment | None:
+        reviewer = self._select_reviewer()
+
+        review_async_fn = getattr(reviewer, "review_async", None)
+        if callable(review_async_fn):
+            return await review_async_fn(vacancy, self.preferences, self.anamnesis)
+
+        return await asyncio.to_thread(reviewer.review, vacancy, self.preferences, self.anamnesis)

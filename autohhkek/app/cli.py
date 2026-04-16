@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import asyncio
 import json
 import textwrap
 import webbrowser
@@ -264,7 +265,7 @@ def main(argv: list[str] | None = None) -> int:
     if command == "plan-apply":
         intake_agent.ensure(interactive=False)
         if not store.load_assessments():
-            analysis_agent.analyze(limit=120)
+            asyncio.run(analysis_agent.analyze_async(limit=0, max_concurrency=60))
         payload = application_agent.build_plan(vacancy_id=args.vacancy_id or None)
         print(f"vacancy: {payload['vacancy']['title']}")
         print(f"backend: {payload['runtime']['backend']}")

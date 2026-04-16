@@ -673,7 +673,7 @@ def _build_operator_summary(
     }
 
 
-def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, Any]:
+def build_dashboard_snapshot(project_root: Path, limit: int = 0) -> dict[str, Any]:
     store = WorkspaceStore(project_root.resolve())
     runtime = HHAutomationRuntime(project_root=project_root.resolve())
 
@@ -681,7 +681,7 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
     anamnesis = store.load_anamnesis()
     vacancies = {item.vacancy_id: item for item in store.load_vacancies()}
     all_assessments = sorted(store.load_assessments(), key=lambda item: item.score, reverse=True)
-    display_assessments = all_assessments[:limit]
+    display_assessments = all_assessments if not limit or limit <= 0 else all_assessments[:limit]
     runs = [item.to_dict() for item in store.list_runs(limit=8)]
     events = [
         {
@@ -769,6 +769,10 @@ def build_dashboard_snapshot(project_root: Path, limit: int = 120) -> dict[str, 
         "doubt": len([item for item in all_assessments if item.category == FitCategory.DOUBT]),
         "no_fit": len([item for item in all_assessments if item.category == FitCategory.NO_FIT]),
         "imported_rules": len(imported_rules),
+        "failed_review_count": int(analysis_state.get("failed_review_count") or 0),
+        "llm_reviewed_count": int(analysis_state.get("llm_reviewed_count") or 0),
+        "reused_assessment_count": int(analysis_state.get("reused_assessment_count") or 0),
+        "saved_assessments": int(analysis_state.get("assessment_count") or 0),
     }
     if saved_rules_hash and current_rules_hash and saved_rules_hash != current_rules_hash:
         analysis_state["stale_reason"] = "Profile or selection rules changed after the last analysis. Run Analyze again to refresh classifications."

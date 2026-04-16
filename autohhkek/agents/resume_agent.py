@@ -37,47 +37,6 @@ class ResumeAgent:
         self.store.record_event("resume", "Собран черновик резюме.")
         return draft, markdown
 
-    def build_cover_letter(self, vacancy: Vacancy, assessment: VacancyAssessment) -> str:
-        preferences = self.store.load_preferences()
-        anamnesis = self.store.load_anamnesis()
-        if not preferences or not anamnesis:
-            return ""
-        if preferences.cover_letter_mode == "never":
-            return ""
-
-        skills = ", ".join(anamnesis.primary_skills[:5]) or "Python"
-        body = (
-            f"Здравствуйте! Меня заинтересовала вакансия {vacancy.title}"
-            f"{f' в {vacancy.company}' if vacancy.company else ''}. "
-            f"У меня {anamnesis.experience_years:g} года опыта в направлении {anamnesis.headline or 'специалист'}, "
-            f"в работе мне помогают навыки {skills}. "
-            f"Мне близки задачи этой роли, и я готова подробнее рассказать о релевантном опыте и пройти необходимые этапы отбора."
-        )
-        return self._sanitize_cover_letter(body)
-
-    def _sanitize_cover_letter(self, text: str) -> str:
-        cleaned = " ".join(str(text or "").split())
-        banned_fragments = (
-            "system instruction",
-            "system prompt",
-            "ignore previous",
-            "assistant:",
-            "user:",
-            "developer:",
-            "tool:",
-            "instruction",
-            "prompt",
-            "chain of thought",
-            "hidden rules",
-        )
-        lowered = cleaned.lower()
-        for fragment in banned_fragments:
-            if fragment in lowered:
-                cleaned = cleaned.replace(fragment, "")
-                cleaned = cleaned.replace(fragment.title(), "")
-                lowered = cleaned.lower()
-        cleaned = cleaned.replace("  ", " ").strip()
-        return cleaned if any("а" <= ch.lower() <= "я" for ch in cleaned if ch.isalpha()) else ""
 
     def _to_markdown(self, draft: ResumeDraft) -> str:
         bullets = "\n".join(f"- {item}" for item in draft.key_skills)

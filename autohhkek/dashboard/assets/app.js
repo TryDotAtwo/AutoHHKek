@@ -881,7 +881,12 @@ function buildPipeline(snapshot) {
   const vacanciesLoaded = (snapshot.counts?.total_vacancies || 0) > 0;
   const liveStats = snapshot.setup_summary?.live_refresh_stats || {};
   const hhTotal = liveStats.total_available || 0;
-  const assessedCount = snapshot.counts?.assessed || 0;
+  const assessedCount = Number(snapshot.counts?.assessed || 0);
+  const fitCount = Number(snapshot.counts?.fit || 0);
+  const doubtCount = Number(snapshot.counts?.doubt || 0);
+  const noFitCount = Number(snapshot.counts?.no_fit || 0);
+  const failedReviewCount = Number(snapshot.counts?.failed_review_count || 0);
+  const hasAssessmentOutcome = assessedCount > 0 || failedReviewCount > 0;
   const analyzing = Boolean(snapshot.analysis_job?.running);
   const multipleResumes = hhResumes.length > 1;
 
@@ -983,18 +988,32 @@ function buildPipeline(snapshot) {
     {
       id: "assessment",
       title: "6. Оценка по 3 колонкам",
-      status: !intakeReady ? "pending" : analyzing ? "active" : assessedCount > 0 ? "completed" : vacanciesLoaded ? "active" : "pending",
+      status: !intakeReady
+        ? "pending"
+        : analyzing
+          ? "active"
+          : hasAssessmentOutcome
+            ? "completed"
+            : vacanciesLoaded
+              ? "active"
+              : "pending",
       summary: !intakeReady
         ? "Сначала завершите intake и только потом переходите к оценке."
         : analyzing
           ? snapshot.analysis_job?.message || "Идёт анализ вакансий."
-          : assessedCount > 0
-            ? `Оценено ${assessedCount} вакансий: ${snapshot.counts?.fit || 0} / ${snapshot.counts?.doubt || 0} / ${snapshot.counts?.no_fit || 0}.`
+          : hasAssessmentOutcome
+            ? `Оценено ${assessedCount} вакансий: ${fitCount} / ${doubtCount} / ${noFitCount}. Ошибок LLM: ${failedReviewCount}.`
             : "После анализа вакансии появятся в трёх колонках.",
       detail: assessedCount > 0
         ? "Можно перейти к карточкам, ручной корректировке решений и запуску отклика по приоритетным вакансиям."
-        : "Подходит = можно откликаться, Сомневаюсь = нужен ручной разбор, Не подходит = отбрасываем.",
-      action: assessedCount > 0 ? { id: "open-vacancies", label: "Открыть вакансии" } : vacanciesLoaded ? { id: "analyze", label: "Запустить оценку" } : null,
+        : failedReviewCount > 0
+          ? "Анализ запускался, но часть или все LLM-проверки завершились ошибкой. Проверьте backend, лимиты и конкуренцию."
+          : "Подходит = можно откликаться, Сомневаюсь = нужен ручной разбор, Не подходит = отбрасываем.",
+      action: hasAssessmentOutcome
+        ? { id: "open-vacancies", label: "Открыть вакансии" }
+        : vacanciesLoaded
+          ? { id: "analyze", label: "Запустить оценку" }
+          : null,
     },
   ];
 }
@@ -2045,7 +2064,7 @@ async function runDashboardAction(actionId, chatPrompt = "") {
     "resume-sync": ["/api/actions/resume", {}],
     "build-rules": ["/api/actions/build-rules", {}],
     "plan-filters": ["/api/actions/plan-filters", {}],
-    analyze: ["/api/actions/analyze", { limit: 120 }],
+    analyze: ["/api/actions/analyze", { limit: 0 }],
     "refresh-vacancies": ["/api/actions/refresh-vacancies", { limit: 0 }],
     "apply-plan": ["/api/actions/apply-plan", { vacancy_id: state.selectedVacancyId || "" }],
   };
@@ -2340,8 +2359,6 @@ function renderVacancyDetail(snapshot) {
   });
   document.getElementById("build-apply-plan")?.addEventListener("click", async () => {
     pauseAutoRefresh(12000);
-    const text = document.getElementById("cover-letter-input")?.value || "";
-    await handleServerAction("/api/actions/save-cover-letter", { vacancy_id: card.id, cover_letter: text });
     await handleServerAction("/api/actions/apply-plan", { vacancy_id: card.id });
   });
   document.getElementById("apply-submit")?.addEventListener("click", async () => {
